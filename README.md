@@ -1,7 +1,7 @@
 # PythonQOL
 
-*Written by Samuel Evans.
-Questions, comments, or interested in contributing? Email sevans7@bu.edu .*
+Written by Samuel Evans.  
+*Questions, comments, or interested in contributing? Email sevans7@bu.edu .*  
 **This repository is intended to provide quality-of-life improvements when coding in python.**
 
 
@@ -19,7 +19,7 @@ CodeQOL: other miscellaneous QOL code
 
 GETTING STARTED:  
 To copy this repository to your computer do (in terminal / command line) :  
-cd <Dir>      # where <Dir> = Directory you want this folder to go in, e.g. cd /Users/YourUserName/Desktop   
+cd <Dir> *#here, <Dir> = Directory you want this folder to go in, e.g. cd /Users/YourUserName/Desktop*   
 git clone https://github.com/Sevans711/PythonQOL/  
 And that's it!  
 To start using the files, I recommend adding the folder containing them to your python PATH.  
