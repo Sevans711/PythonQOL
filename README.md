@@ -1,6 +1,6 @@
 # PythonQOL
-# Written by Samuel Evans
-# Questions, comments, or interested in contributing? Email sevans7@bu.edu .
+Written by Samuel Evans
+Questions, comments, or interested in contributing? Email sevans7@bu.edu .
 This repository is intended to provide quality-of-life improvements when coding in python.
 
 DISTRIBUTION:
