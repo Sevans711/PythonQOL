@@ -24,9 +24,9 @@ git clone https://github.com/Sevans711/PythonQOL/
 And that's it!  
 To start using the files, I recommend adding the folder containing them to your python PATH.  
 For example, I use Spyder, so in the top left of my screen when spyder is open,
-I can click python > PYTHONPATH manager, then +Add Path, select the folder with this repository.
+I can click python > PYTHONPATH manager, then +Add Path, then select the folder with this repository.
 For other python consoles you may need to determine separately how to edit your PATH variable.  
-The PATH tells python where to search for File when you type "import File".  
+The PATH tells python where it's allowed to search for File when you type "import File".  
 Once you've added the folder with this repository to your PATH, you can do something like:
 import FileQOL as fqol  
 import PlotQOL as pqol  
