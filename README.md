@@ -16,11 +16,8 @@ If you know about github liscenses and are willing to help, I am happy to accept
 
 
 CONTENTS:
-
 PlotQOL: plotting (mainly matplotlib.pyplot)
-
 FileQOL: storage  (mainly h5py)
-
 CodeQOL: other miscellaneous QOL code.
 
 
