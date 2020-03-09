@@ -27,14 +27,17 @@ For example, I use Spyder, so in the top left of my screen when spyder is open,
 I can click python > PYTHONPATH manager, then +Add Path, then select the folder with this repository.
 For other python consoles you may need to determine separately how to edit your PATH variable.  
 The PATH tells python where it's allowed to search for File when you type "import File".  
-Once you've added the folder with this repository to your PATH, you can do something like:
+Once you've added the folder with this repository to your PATH, you can do something like:  
 import FileQOL as fqol  
 import PlotQOL as pqol  
 import CodeQOL as cqol  
-#then to get started and check out some of the available functions without reading all the code, you could do  
-#help(obj) to read the documentation. e.g.:  
-help(pqol) #will print documentation about pqol, including what functions it contains and what they do.
-
+*#then to get started and check out some of the available functions without reading all the code, you could do  
+#help(obj) to read the documentation. e.g.:*  
+help(pqol) *#will print documentation about pqol, including what functions it contains and what they do.*
+  
+DEPENDENCIES:  
+You may need to install h5py to run FileQOL.  
+For that I direct you to http://docs.h5py.org/en/stable/build.html#  
 
 
 
