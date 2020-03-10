@@ -54,13 +54,19 @@ XYLIM_MARGIN=0.05
 def str2idx(string):
     """converts s into the indexing tuple it represents.
     
-    For example,
-        ":9"      -> slice(None, 9, None)       
-        ":,10"    -> (slice(None), 10)          
-        "9,8,:7"  -> (9,8,slice(None,7))        
-        "1,::7"   -> (1, slice(None, None, 7))  
-    if string includes brackets [], they will be ignored.
-    ellipses (...) are not currently supported.
+    If string includes brackets [], they will be ignored.
+    Ellipses (...) are not currently supported.
+    
+    Examples
+    --------
+    >>> pqol.str2idx(":9")
+    (slice(None, 9, None),)    
+    >>> np.arange(20)[pqol.str2idx("3:9")]
+    array([3, 4, 5, 6, 7, 8])         
+    >>> np.arange(20).reshape(4,5)[pqol.str2idx(":,1")]
+    array([ 1,  6, 11, 16])     
+    >>> np.arange(20).reshape(4,5)[pqol.str2idx("::2,1")]
+    array([ 1, 11]) 
     """
     ans = []
     dims = (string.replace('[','').replace(']','')).split(',')
@@ -76,22 +82,56 @@ def str2idx(string):
 
 #### plt.plot functionality ####
 
-def iplot(x, y=None, ss=None, i=None, **kwargs):
+def iplot(x, y=None, ss=None, i=None, plotter=plt.plot, iplotter=None, **kwargs):
     """plots y vs x, both indexed by index array i or slice_string ss.
-    ignores i if ss is not None.
-    check PlotQOL.str2idx().__doc__ for formatting rules for ss.
-    remaining kwargs go to plt.plot.
+    
+    (Returns the output of the plotting function.)
+    
+    Parameters
+    ----------
+    x, y : arrays with the data to be plotted.
+        If y is None, plots x vs np.arange(len(x)).
+    ss : None, or slice_string ss. e.g. ":9", ":,8,:", or "::3".
+        Indexes both x and y. Plot will be of y[pqol.str2idx(ss)] vs x[pqol.str2idx(ss)].
+        Check help(pqol.str2idx) for further documentation about ss formatting.
+        If ss is None, try to index by 'i' instead.
+    i : None, or list of integers or booleans, of length == len(x)
+        Indexes both x and y. Plot will be of y[i] vs x[i].
+        If i  is None (and ss is also None), plots y vs x.
+    plotter : function
+        Must accept x and y as args; label and **kwargs as kwargs.
+    iplotter : None, or function
+        Use iplotter instead of plotter if iplotter is passed.
+        Useful mainly for using non-default plotter if iplot is passed as input
+        to a method which already has 'plotter' as kwarg, such as pqol.dictplot.
+        (e.g.: pqol.dictplot(d, plotter=pqol.iplot, iplotter=plt.scatter))
+    remaining **kwargs go to plotter or iplotter if not None.
+    
+    Examples
+    --------
+    x = np.array([ 2, 4, 6, 8,10,12,14,16, 18])
+    y = np.array([-7,-3,-1, 0, 0,-1,-3,-7,-16])
+    #The following three lines are equivalent:
+    pqol.iplot(x, y, ss="0::2")
+    pqol.iplot(x, y, i =[0,2,4,6,8])
+    pqol.iplot(x, y, i =[True,False,True,False,True,False,True,False,True])
+    #Also try out the following:
+    pqol.iplot(x, y, ss="3:8", plotter=plt.scatter)
+    pqol.iplot(x, y, i= ((x >=2 ) & (x <=7)), plotter=plt.scatter)
+    pqol.iplot(x, y, i= (y < -4), plotter=plt.scatter)
     """
+    
+    if y is None:
+        y=x
+        x=np.arange(len(x))
+    plotter = plotter if iplotter is None else iplotter
     if ss is not None:
         s=str2idx(ss)
-        if y is None: return plt.plot(x[s], **kwargs)
-        else:         return plt.plot(x[s], y[s], **kwargs)
+        return plotter(x[s], y[s], **kwargs)
     elif i is not None:
-        if y is None: return plt.plot(x[i], **kwargs)
-        else:         return plt.plot(x[i], y[i], **kwargs)
+        return plotter(x[i], y[i], **kwargs)
     else:
-        if y is None: return plt.plot(x, **kwargs)
-        else:         return plt.plot(x, y, **kwargs)
+        return plotter(x, y, **kwargs)
     
 def dictplot(x, y=None, yfunc=lambda y:y, xfunc=lambda x:x, keys=None, hide_keys=[],
              keys_prefix=None, hide_keys_prefix=[], prefix="", suffix="", 
@@ -128,6 +168,30 @@ def dictplot(x, y=None, yfunc=lambda y:y, xfunc=lambda x:x, keys=None, hide_keys
     plotter : function
         Must accept x and y as args; label and **kwargs as kwargs.
     **kwargs are passed to plotter.
+    
+    Examples
+    --------
+    #Try the following:
+    x  = np.array([ 2, 4, 6, 8,10,12,14,16, 18])
+    y1 = np.array([-7,-3,-1, 0, 0,-1,-3,-7,-16])
+    y2 = np.array([ 7, 3, 1, 0, 0, 1, 3, 7, 16])
+    y3 = np.array([ 5, 5, 5, 5, 5, 5, 5, 5, 5 ])
+    d  = dict(xData=x, y1=y1, ySecond=y2, y3rd=y3)
+    y_all = np.concatenate([y1,y2,y3])
+    xlims = [x.min()     -1, x.max()     +1]
+    ylims = [y_all.min() -1, y_all.max() +1]
+    pqol.dictplot(d)
+    plt.title("plot A"); plt.show()
+    pqol.dictplot("xData", d)
+    plt.title("plot B"); plt.xlim(xlims); plt.ylim(ylims); plt.show()
+    pqol.dictplot("xData", d, yfunc=lambda y: y/2)
+    plt.title("plot C"); plt.xlim(xlims); plt.ylim(ylims); plt.show()
+    pqol.dictplot("xData", d, hide_keys=["y2"], plotter=plt.scatter)
+    plt.title("plot D"); plt.xlim(xlims); plt.ylim(ylims); plt.show()
+    pqol.dictplot("xData", d, plotter=pqol.iplot, ss="3:8")
+    plt.title("plot E"); plt.xlim(xlims); plt.ylim(ylims); plt.show()
+    pqol.dictplot("xData", d, plotter=pqol.iplot, ss="3:8", iplotter=plt.scatter)
+    plt.title("plot F"); plt.xlim(xlims); plt.ylim(ylims); plt.show()
     """
     def set_keys(d, keys=None, keys_prefix=None, hide_keys=[], hide_keys_prefix=[]):
         do_keys = d.keys() if (keys is None and keys_prefix is None)     else \
@@ -182,12 +246,22 @@ def dictplot(x, y=None, yfunc=lambda y:y, xfunc=lambda x:x, keys=None, hide_keys
 
 def colorbar(im, ax=None, loc="right", size="5%", pad=0.05, label=None, **kwargs):
     """draws vertical colorbar with decent size and positioning to the right of data.
+    
     use via e.g. {im = plt.imshow(); colorbar(im)}.
-    loc  = location of colorbar. if "bottom", may want to pass orientation="horizontal".
-    pad  = padding (in inches?) between plot and colorbar.
-    size = width compared to image. e.g. "5%" means cbar_xaxis is 5% of img_xaxis if loc="right".
-    label, if passed, will use defaults for PlotQOL.clabel() to label colorbar.
-    **kwargs go to plt.colorbar()"""
+    
+    Parameters
+    ----------
+    loc : string
+        location of colorbar. e.g. "right", "bottom".
+        If "bottom", may want to also input orientation="horizontal".
+    size : string
+        width compared to image. e.g. "5%" means cbar_xaxis is 5% of img_xaxis if loc="right".
+    pad : float
+        padding (in inches?) between plot and colorbar.
+    label : None, or string
+        if passed, will use defaults for pqol.clabel() to label colorbar.
+    **kwargs go to plt.colorbar()
+    """
     ax = ax if ax is not None else plt.gca()
     
     # create an axes on the right side of ax. The width of cax will be 5%
@@ -204,9 +278,15 @@ def clabel(label, ax=None, rotation= -90, va='baseline', **kwargs):
     return ax.set_ylabel(label, rotation=rotation, va=va, **kwargs)
 
 def extend(center, size, shape=None):
-    """returns numerical values for extent of box with same aspect ratio as data
+    """returns numerical values for extent of box with same aspect ratio as data.
+    
     size is number of pixels in y direction.
     shape is shape of data; data.shape.
+    
+    Examples
+    --------
+    >>> pqol.extend((5,10), 4)
+    [3.0, 7.0, 8.0, 12.0]
     """
     shape = [1.,1.] if shape is None else shape
     scale = shape[1]/shape[0]
@@ -224,7 +304,10 @@ def extend(center, size, shape=None):
     
 def zoom(center, size, shape=None, ax=None):
     """Zooms into region centered on center with size size.
-    inputs should be in axes (data) coordinates."""
+    
+    inputs should be in axes (data) coordinates.
+    Example: zoom((5, 10), 4) #will show region [3,7] x [8,12].
+    """
     ax = ax if ax is not None else plt.gca()
     extent = extend(center, size, shape=shape)
     ax.set_xlim([extent[0],extent[1]])
@@ -232,7 +315,10 @@ def zoom(center, size, shape=None, ax=None):
 
 def zoomregion(xm, xx, ym, yx, ax=None):
     """Zooms into region [xm,xx] [ym,yx].
-    inputs should be in axes (data) coordinates."""
+    
+    inputs should be in axes (data) coordinates.
+    Example: zoomregion(3,7,8,12) #will show region [3,7] x [8,12].
+    """
     ax = ax if ax is not None else plt.gca()
     ax.set_xlim([xm,xx])
     ax.set_ylim([ym,yx])
@@ -281,7 +367,9 @@ def do_ylim(xlim=True, data=None, ax=None, margin=XYLIM_MARGIN):
     
 def _find_xylim(xlim=None, ylim=None, data=None, ax=None, margin=XYLIM_MARGIN):        
     """returns optimal x(or y)lim based on y(or x)lim & data, with margin at edges.
+    
     returns whichever lim is set to None. e.g. if xlim is None, returns xlim.
+    
     if data is None, pulls data from ax.
     if xlim is True, pulls xlim info from ax.
     if ylim is True, pulls ylim info from ax.
@@ -325,6 +413,7 @@ def _find_ylim(xlim=True, data=None, ax=None, margin=XYLIM_MARGIN):
 
 def get_data(ax=None):
     """gets data of anything plotted by plt.plot & plt.scatter, on ax.
+    
     if ax is None, defaults to current axes (i.e. active plot).
     returns:
         list of [xdata, ydata] arrays (potentially masked).
@@ -376,7 +465,8 @@ def linecalc(x1x2,y1y2):
     
 def plotline(xdata, m, b, xb=0, **kwargs):
     """plots the line with parameters m=slope & b=y-intercept, at xdata.
-    xb = x where y==b. usually 0; use xb!=0 for point-slope form of line.
+    
+    xb = (x where y==b). usually 0; use xb!=0 for point-slope form of line.
     """
     yline  = np.array(m * (xdata - xb) + b)
     plt.plot(xdata, yline, **kwargs)
