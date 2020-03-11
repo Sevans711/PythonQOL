@@ -38,8 +38,13 @@ def attrs(Class):
 """
 #Simple example of using a wrapper function to do something if error occurs,
 #   then propagate the error forward (without handling it).
+#   Also properly maintains documentation of function via wraps.
+#   To simplify example, can delete all lines labeled '#for documentation handling'.
 
+from functools import wraps #for documentation handling
 def sympathize(f):
+    '''wraps f'''
+    @wraps(f) #for documentation handling
     def foo(*args, **kwargs):
         try:
             return f(*args, **kwargs)
@@ -49,7 +54,8 @@ def sympathize(f):
     return foo
 
 @sympathize
-def sadden():
+def sadden(param1=1, param2=2):
+    '''raises a sad error'''
     raise Exception("just a mean error messing up your code")
 
 sadden()
