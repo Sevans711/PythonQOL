@@ -10,7 +10,9 @@ Useful and user-friendly/convenient codes for making matplotlib plots.
 
 #TODO: implement title for colorbar()
 #TODO: implement scatter plot marker cycle
-    
+#TODO: implement different left/right yscales to put two plots on same grid.
+#TODO: implement easy annotation (textboxes etc.)
+#TODO: implement add an hline or vline and label it.
 #check out illustrator
 
 import numpy as np
@@ -171,7 +173,7 @@ def dictplot(x, y=None, yfunc=lambda y:y, xfunc=lambda x:x, keys=None, hide_keys
     
     Examples
     --------
-    #Try the following:
+    #import PlotQOL as pqol; then try the following:
     x  = np.array([ 2, 4, 6, 8,10,12,14,16, 18])
     y1 = np.array([-7,-3,-1, 0, 0,-1,-3,-7,-16])
     y2 = np.array([ 7, 3, 1, 0, 0, 1, 3, 7, 16])
@@ -384,11 +386,11 @@ def _find_xylim(xlim=None, ylim=None, data=None, ax=None, margin=XYLIM_MARGIN):
         return None
     #else:
     ax   = ax   if ax   is not None else plt.gca()
-    data = data if data is not None else get_data(ax)
+    data = data if data is not None else get_data(ax, combine=True)
     xlim = xlim if xlim is not True else ax.get_xlim()
     ylim = ylim if ylim is not True else ax.get_ylim()
-    x    = np.array([x for l in data for x in l[0]])
-    y    = np.array([y for l in data for y in l[1]])
+    x    = data[0]
+    y    = data[1]
     if ylim is None:
         klim = xlim #known lim = xlim
         k, u = x, y #data for (known lim, unknown lim) = (x, y)
@@ -411,17 +413,33 @@ def _find_ylim(xlim=True, data=None, ax=None, margin=XYLIM_MARGIN):
 
 ## get data from plot ##
 
-def get_data(ax=None):
+def get_data(ax=None, combine=False):
     """gets data of anything plotted by plt.plot & plt.scatter, on ax.
     
     if ax is None, defaults to current axes (i.e. active plot).
-    returns:
+    
+    Returns:
+    --------
+    If combine is False:
         list of [xdata, ydata] arrays (potentially masked).
         .plot arrays will be listed first, followed by .scatter masked arrays.
+    If combine is True:
+        [all xdata (from all the plots), all corresponding ydata].
+        result[0][i] will be a single xdata point, at least one of the
+        plots will contain the point (result[0][i], result[1][i]),
+        and every point of xdata from every plot on ax will be in result[0].
+        Specifically, with data = get_data(ax, False), get_data(ax, True) will
+        return [[x for l in data for x in l[0]], [y for l in data for y in l[1]]].
     (for static return formatting, not based on output, use _get_alldata.)
     """
     d = _get_alldata(ax)
-    return d["plot"] + d["scatter"]
+    if not combine:
+        return d["plot"] + d["scatter"]
+    elif combine:
+        data = d["plot"] + d["scatter"]
+        x    = np.array([x for l in data for x in l[0]])
+        y    = np.array([y for l in data for y in l[1]])
+        return [x, y]
         
 def _get_alldata(ax=None):
     """gets data of anything plotted by plt.plot & plt.scatter, on ax.
@@ -486,6 +504,87 @@ def labelline(xy, xyvars=('x', 'y'), s="{:} = {:.2e} * {:} + {:.2e}"):
     l = linregress(xy)
     return s.format(xyvars[1], l.slope, xyvars[0], l.intercept)
 
+def hline(y, text=None, textloc=0.5, textanchor="center", textside=+1, xmin=0, xmax=1,
+          yspec="data", xspec="axes", textspec="axes", ax=None, **kwargs):
+    """Add a horizontal line across the plot, and label it if 'text' is entered.
+    
+    Use 'text' parameter to add text along line.
+    additional **kwargs are passed to plt.axhline.
+    "axes" coordinates refers to coordinates of the Axes.
+    (0,0) is the bottom left of the axes,
+    (0,1) is the top left, and (1,1) is the top right.
+
+    Parameters
+    ----------
+    y : scalar
+        y position of the horizontal line. In data coordinates by default.
+    text : string or None. Default: None
+        text to label line on the plot, or None.
+    textloc : scalar. Default: 0.5
+        location of text along line.
+    textanchor : "left", "center", or "right". Default: "center"
+        which part of text is anchored at textloc.
+        "left"   -> the text will begin at textloc.
+        "center" -> the text will be centered on textloc.
+        "right"  -> the text will end at textloc.
+    textside : +1 or -1. Default: +1
+        side of line to put text on.
+        If +1, put text above line. If -1, put text below line.
+    xmin : scalar. Default: 0
+        leftward extent of line, in axes coordinates by default.
+    xmax : scalar. Default: 1
+        rightward extent of line, in axes coordinates by default.
+    yspec : "data" or "axes". Default: "data"
+        specification coordinate system for 'y'.
+    xspec : "data" or "axes". Default: "axes"
+        specification of coordinate system for 'xmin' and 'xmax'.
+    textspec : data" or "axes". Default: "axes"
+        specification of coordinate system for 'textloc'.
+    additional **kwargs get passed to plt.axhline
+        
+    Examples
+    --------
+    #Try this
+    plt.plot(range(10))
+    pqol.hline(3, "hello, world!", textloc=0.3)
+    """
+    print("NOT IMPLEMENTED")
+    pass
+
+def _xy_ax_data_convert(coords, axis="x", convertto="data", ax=None, lim=None):
+    """converts coords between ax and data coord systems.
+    
+    coords : scalar or array.
+    axis : "x" or "y".
+    convertto : "data" or "ax".
+    ax : Axes object, or None to use active plot.
+    lim : None, or [min, max] -> ignore plot; convert as if ax had lim=[min, max].
+    If lim is not None, 'axis' and 'ax' are ignored entirely.
+    """
+    if lim is None:
+        ax  = ax if ax is not None else plt.gca()
+        lim = ax.get_xlim() if axis=="x" else ax.get_ylim()
+        
+    if convertto=="data":
+        return lim[0] + coords * np.array( lim[1] - lim[0] ) #np.array for typecasting only.
+    else:
+        return (coords - lim[0]) / np.array ( lim[1] - lim[0] ) #np.array for typecasting only.
+        
+def _xcoords_ax_to_data(x_axcoords, ax=None, xlim=None):
+    """Converts x-axis ax coords to x-axis data coords, via _xy_ax_data_convert."""
+    return _xy_ax_data_convert(x_axcoords, axis="x", convertto="data", ax=ax, lim=xlim)
+
+def _ycoords_ax_to_data(y_axcoords, ax=None, ylim=None):
+    """Converts y-axis ax coords to y-axis data coords, via _xy_ax_data_convert."""
+    return _xy_ax_data_convert(y_axcoords, axis="y", convertto="data", ax=ax, lim=ylim)
+
+def _xcoords_data_to_ax(x_datacoords, ax=None, xlim=None):
+    """Converts x-axis data coords to x-axis ax coords, via _xy_ax_data_convert."""
+    return _xy_ax_data_convert(x_datacoords, axis="x", convertto="ax", ax=ax, lim=xlim)
+
+def _ycoords_data_to_ax(y_datacoords, ax=None, ylim=None):
+    """Converts y-axis data coords to y-axis ax coords, via _xy_ax_data_convert."""
+    return _xy_ax_data_convert(y_datacoords, axis="y", convertto="ax", ax=ax, lim=ylim)
 
 
 #### References to matplotlib colors ####
