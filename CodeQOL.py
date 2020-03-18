@@ -9,11 +9,8 @@ Snippets of very useful/elegant code that can be non-trivial to write.
 Check documentation of function for info on how to write the code yourself.
 """
 
-#TODO: func to pull, store, and remove any **kwargs from given_list.
 #TODO: wrapper functions in general
 #TODO: wrapper function for print input args & kwargs
-#Maybe see https://amaral.northwestern.edu/blog/function-wrapper-and-python-decorator
-#TODO: dealing with exceptions, & the raise statement
 #TODO: utilize wrapper/decorator to return local variables in case code crashes?
 
 def flatten_once(l):
@@ -34,6 +31,29 @@ def attrs(Class):
         return Class.__dict__.keys()
     """
     return Class.__dict__.keys()
+
+def pop_from_kwargs(popthis, kwargs, default=None):
+    """pops popthis from kwargs, returning (popthis, remaining_kwargs)
+    
+    Removes key popthis from kwargs if possible.
+    Returns (kwargs[popthis] or default if popthis not in kwargs, kwargs without popthis)
+    
+    Examples
+    --------
+    >>>def foo2(**kwargs):
+    >>>    return cqol.pop_from_kwargs('x', kwargs, 7)
+    >>>foo2(x=1, y=2, z=3)
+    (1, {'y': 2, 'z': 3})
+    >>>foo2(**foo2(x=1, y=2, z=3)[1])
+    (7, {'y': 2, 'z': 3})
+    
+    Code:
+    -----
+        popped = kwargs.pop(popthis, default)
+        return (popped, kwargs)
+    """
+    popped = kwargs.pop(popthis, default)
+    return (popped, kwargs)
 
 """
 #Simple example of using a wrapper function to do something if error occurs,
