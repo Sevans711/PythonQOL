@@ -11,8 +11,9 @@ Useful and user-friendly/convenient codes for making matplotlib plots.
 #TODO: implement title for colorbar()
 #TODO: implement scatter plot marker cycle
 #TODO: implement different left/right yscales to put two plots on same grid.
+    #Can be accomplished by just doing:
+    #plt.plot(<firstplot>); plt.twinx(); plt.plot(<secondplot>)
 #TODO: implement easy annotation (textboxes etc.)
-#TODO: implement add an hline or vline and label it.
 #check out illustrator
 
 import numpy as np
@@ -22,6 +23,8 @@ import matplotlib.patches as patches
 from scipy.stats import linregress
 
 
+XYLIM_MARGIN=0.05
+TEXTBOX_MARGIN=0.002
 
 #### set better defaults ####
 
@@ -46,9 +49,6 @@ def set_plot_defaults():
     fixfonts()
     
 set_plot_defaults()
-
-XYLIM_MARGIN=0.05
-
 
 
 #### slice string interpreter ####
@@ -504,8 +504,10 @@ def labelline(xy, xyvars=('x', 'y'), s="{:} = {:.2e} * {:} + {:.2e}"):
     l = linregress(xy)
     return s.format(xyvars[1], l.slope, xyvars[0], l.intercept)
 
-def hline(y, text=None, textloc=0.5, textanchor="center", textside=+1, xmin=0, xmax=1,
-          yspec="data", xspec="axes", textspec="axes", ax=None, **kwargs):
+def hline(y, text=None, textparams=dict(), textloc=0.5, textanchor="start",
+          textside="top", textmargin=TEXTBOX_MARGIN,
+          xmin=0, xmax=1, yspec="data", xspec="axes", textspec="axes",
+          ax=None, **kwargs):
     """Add a horizontal line across the plot, and label it if 'text' is entered.
     
     Use 'text' parameter to add text along line.
@@ -520,16 +522,24 @@ def hline(y, text=None, textloc=0.5, textanchor="center", textside=+1, xmin=0, x
         y position of the horizontal line. In data coordinates by default.
     text : string or None. Default: None
         text to label line on the plot, or None.
+    textparams : dict. Default: {}
+        pass parameters to ax.text() function here.
+        e.g. textparams=dict(fontsize=10) will change the fontsize to 10.
     textloc : scalar. Default: 0.5
-        location of text along line.
+        location of text anchor along line, in axes coordinates by default.
     textanchor : "left", "center", or "right". Default: "center"
         which part of text is anchored at textloc.
-        "left"   -> the text will begin at textloc.
+        "start"  -> the text will begin at textloc.
         "center" -> the text will be centered on textloc.
-        "right"  -> the text will end at textloc.
-    textside : +1 or -1. Default: +1
+        "end"    -> the text will end at textloc.
+    textside : "top", "center", or "bottom". Default: "top"
         side of line to put text on.
-        If +1, put text above line. If -1, put text below line.
+        "top"    -> the text will be above the line.
+        "center" -> the text will be inline. (with white bbox covering line.)
+        "bottom" -> the text will be below the line.
+    textmargin : scalar. Default: pqol.TEXTBOX_MARGIN (==0.002 by default)
+        fraction of axes length to push text away from line.
+        has no effect if textside=="center".
     xmin : scalar. Default: 0
         leftward extent of line, in axes coordinates by default.
     xmax : scalar. Default: 1
@@ -540,16 +550,150 @@ def hline(y, text=None, textloc=0.5, textanchor="center", textside=+1, xmin=0, x
         specification of coordinate system for 'xmin' and 'xmax'.
     textspec : data" or "axes". Default: "axes"
         specification of coordinate system for 'textloc'.
-    additional **kwargs get passed to plt.axhline
+    additional **kwargs get passed to ax.axhline
         
     Examples
     --------
     #Try this
     plt.plot(range(10))
-    pqol.hline(3, "hello, world!", textloc=0.3)
+    pqol.hline(3, "hello, world!", textloc=7, textanchor="start", textspec="data")
+    pqol.vline(7)
     """
-    print("NOT IMPLEMENTED")
-    pass
+    ax = ax if ax is not None else plt.gca()
+    y_d    = y if yspec=="data" else \
+                (_ycoords_ax_to_data(y, ax=ax) \
+                     if yspec=="axes" else None) #y in data coords
+    (xmin_a, xmax_a) = (xmin, xmax) if xspec=="axes" else \
+                (_xcoords_data_to_ax((xmin, xmax), ax=ax) \
+                     if xspec=="data" else (None, None)) #xmin & xmax in ax coords
+    
+    ax.axhline(y_d, xmin_a, xmax_a, **kwargs)
+    
+    if text is not None:
+        va = "bottom" if textside=="top"   else ( \
+                "center" if textside=="center"   else ( \
+                "top"    if textside=="bottom"   else None)) #vertical alignment
+        ha = "left" if textanchor=="start" else ( \
+                "center" if textanchor=="center" else ( \
+                "right"  if textanchor=="end"    else None)) #horizontal alignment
+        bbox = textparams.pop('bbox', \
+                 None if va != "center" else dict(fc="white", lw=0)) #default if bbox not in textparams
+        
+        marginal_text_shift = _margin(textmargin, "y", ax)
+        marginal_text_shift *= -1 if textside=="bottom" else( \
+                                0 if textside=="center" else( \
+                               +1 if textside=="top" else None))
+        textx_d = textloc if textspec=="data" else \
+                    _xcoords_ax_to_data(textloc, ax=ax) #x for text anchor in data coords
+        
+        txt=ax.text(textx_d, y_d + marginal_text_shift, text, 
+                    **textparams, bbox=bbox, va=va, ha=ha)
+        return txt
+
+def vline(x, text=None, textparams=dict(), textloc=0.5, textanchor="start",
+          textside="left", textdirection="up", textmargin=TEXTBOX_MARGIN,
+          ymin=0, ymax=1, xspec="data", yspec="axes", textspec="axes",
+          ax=None, **kwargs):
+    """Add a vertical line across the plot, and label it if 'text' is entered.
+    
+    Use 'text' parameter to add text along line.
+    Text will read from bottom to top by default - use 'textdirection' to change this.
+    additional **kwargs are passed to plt.axhline.
+    "axes" coordinates refers to coordinates of the Axes.
+    (0,0) is the bottom left of the axes,
+    (0,1) is the top left, and (1,1) is the top right.
+
+    Parameters
+    ----------
+    x : scalar
+        x position of the vertical line. In data coordinates by default.
+    text : string or None. Default: None
+        text to label line on the plot, or None.
+    textparams : dict. Default: {}
+        pass parameters to ax.text() function here.
+        e.g. textparams=dict(fontsize=10) will change the fontsize to 10.
+    textloc : scalar. Default: 0.5
+        location of text anchor along line, in axes coordinates by default.
+    textanchor : "left", "center", or "right". Default: "center"
+        which part of text is anchored at textloc.
+        "start"  -> the text will begin at textloc.
+        "center" -> the text will be centered on textloc.
+        "end"    -> the text will end at textloc.
+    textside : "left", "center", or "right". Default: "left"
+        side of line to put text on.
+        "left"   -> the text will be to the left of the line.
+        "center" -> the text will be inline. (with white bbox covering line.)
+        "right"  -> the text will be to the right of the line.
+    textdirection : "up" or "down". Default: "up"
+        direction text should read. ("up" reads bottom to top.)
+    textmargin : scalar. Default: pqol.TEXTBOX_MARGIN (==0.002 by default)
+        fraction of axes length to push text away from line.
+        has no effect if textside=="center".
+    textrotation : 
+    ymin : scalar. Default: 0
+        leftward extent of line, in axes coordinates by default.
+    ymax : scalar. Default: 1
+        rightward extent of line, in axes coordinates by default.
+    xspec : "data" or "axes". Default: "data"
+        specification coordinate system for 'x'.
+    yspec : "data" or "axes". Default: "axes"
+        specification of coordinate system for 'ymin' and 'ymax'.
+    textspec : data" or "axes". Default: "axes"
+        specification of coordinate system for 'textloc'.
+    additional **kwargs get passed to ax.axvline
+        
+    Examples
+    --------
+    #Try this
+    plt.plot(range(10))
+    pqol.vline(3, ">LeftUp") #default textside, default textdirection.
+    pqol.vline(3, ">LeftDown",  textdirection='down') #default textside.
+    pqol.vline(3, ">RightUp",   textside='right') #default textdirection.
+    pqol.vline(3, ">RightDown", textside='right', textdirection='down')
+    
+    #TODO: investigate why the <SameSide> Up & Down texts dont line up horizontally.
+    
+    """
+    ax = ax if ax is not None else plt.gca()
+    x_d    = x if xspec=="data" else \
+                (_xcoords_ax_to_data(x, ax=ax) \
+                     if xspec=="axes" else None) #x in data coords
+    (ymin_a, ymax_a) = (ymin, ymax) if yspec=="axes" else \
+                (_ycoords_data_to_ax((ymin, ymax), ax=ax) \
+                     if yspec=="data" else (None, None)) #ymin & ymax in ax coords
+    
+    ax.axvline(x_d, ymin_a, ymax_a, **kwargs)
+    
+    if text is not None:
+        ha = "left"   if textside=="right"   else ( \
+                "center" if textside=="center"   else( \
+                "right"  if textside=="left"     else None)) #horizontal alignement
+        va = "bottom" if textanchor=="start" else ( \
+                "center" if textanchor=="center" else( \
+                "top"    if textanchor=="end"    else None)) #vertical alignment
+        if textdirection=="up":
+            rotation = textparams.pop('rotation', 90) #default rotation to 90 deg
+            #va = va #it does not need to change.
+        elif textdirection=="down":
+            rotation = textparams.pop('rotation', 270) #default rotation to 270 deg
+            if   va=="bottom": va = "top"
+            elif va=="top":    va = "bottom"
+        else:
+            raise Exception("textdirection must be 'up' or 'down', only.")
+        bbox = textparams.pop('bbox', \
+                 None if ha != "center" else dict(fc="white", lw=0)) #default if bbox not in textparams
+        marginal_text_shift = _margin(textmargin, "x", ax)
+        marginal_text_shift *= -1 if textside=="left"   else( \
+                                0 if textside=="center" else( \
+                               +1 if textside=="right"  else None))
+        texty_d = textloc if textspec=="data" else \
+                    _ycoords_ax_to_data(textloc, ax=ax) #y for text anchor in data coords
+        
+        txt=ax.text(x_d + marginal_text_shift, texty_d, text, rotation=rotation,
+                    **textparams, bbox=bbox, va=va, ha=ha)
+        return txt
+
+### convert between data and axes coordinates ###
 
 def _xy_ax_data_convert(coords, axis="x", convertto="data", ax=None, lim=None):
     """converts coords between ax and data coord systems.
@@ -586,6 +730,16 @@ def _ycoords_data_to_ax(y_datacoords, ax=None, ylim=None):
     """Converts y-axis data coords to y-axis ax coords, via _xy_ax_data_convert."""
     return _xy_ax_data_convert(y_datacoords, axis="y", convertto="ax", ax=ax, lim=ylim)
 
+def _margin(margin, axis="x", ax=None):
+    """converts margin as fraction of full data range into data value.
+    
+    returns magin * (Zmax - Zmin), where 'Z' == axis == 'x' or 'y'.
+    
+    ax is set to active plot if None is passed.
+    """
+    ax = ax if ax is not None else plt.gca()
+    lim = ax.get_xlim() if axis=="x" else (ax.get_ylim() if axis=="y" else None)
+    return margin * (lim[1] - lim[0])
 
 #### References to matplotlib colors ####
 #copied from matplotlib docs.
