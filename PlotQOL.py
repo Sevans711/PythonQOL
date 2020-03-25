@@ -18,7 +18,6 @@ Useful and user-friendly/convenient codes for making matplotlib plots.
 #check out illustrator
 #A good example of textbox annotations can be found in answers here:
 #   https://stackoverflow.com/questions/17086847/box-around-text-in-matplotlib
-#TODO: implement default method for saving figures, avoiding overwriting existing files.
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -29,23 +28,7 @@ import os #only used for saving figures.
 
 XYLIM_MARGIN=0.05
 TEXTBOX_MARGIN=0.002
-
-
-#### Current directory 
-pltsavedir = os.getcwd()+'/saved_plots/' if 'pltsavedir' not in locals().keys() \
-                                         else locals()['pltsavedir']
-"""default location for plot saves. Change using set_savedir(new_savedir)"""
-
-def set_savedir(new_savedir):
-    """sets pltsavedir to the new_savedir.
-    
-    pltsavedir is the default location for saved plots.
-    it defaults to os.getcwd()+'/saved_plots/'.
-    access via: import PlotQOL as pqol; pqol.pltsavedir
-    """
-    global pltsavedir
-    pltsavedir = new_savedir
-
+DEFAULT_SAVE_STR="Untitled"
 
 #### set better defaults ####
 
@@ -763,6 +746,83 @@ def _margin(margin, axis="x", ax=None):
     lim = ax.get_xlim() if axis=="x" else (ax.get_ylim() if axis=="y" else None)
     return margin * (lim[1] - lim[0])
 
+
+#### Save Plots ####
+    
+## Current Directory ##
+    
+savedir = os.getcwd()+'/saved_plots/' if 'savedir' not in locals().keys() else locals()['savedir']
+"""default location for plot saves. Change using set_savedir(new_savedir)"""
+
+## Save plots ##
+
+def set_savedir(new_savedir):
+    """sets savedir to the new_savedir.
+    
+    savedir is the default location for saved plots.
+    it defaults to os.getcwd()+'/saved_plots/'.
+    access via: import PlotQOL as pqol; pqol.savedir
+    """
+    global savedir
+    savedir = new_savedir
+
+def _convert_to_next_filename(name, folder=savedir):
+    """returns string for next filename starting with name, in folder.
+    
+    Folder will be part of return; i.e. result contains the full path.
+    If name starts with '/', ignores the 'folder' kwarg.
+    Attempts to make folder if implied folder does not exist.
+    Convention is to use filenames in order: [name, name 1, name 2, ...].
+    Will not re-use earlier names if files are deleted.
+    e.g. if only [name, name 3, name 4] exist, will return name 5, not name 1.
+    """
+    split = " " #splits name and number.
+    
+    if name.startswith('/'):
+        folder = name[ : (name.rfind('/')) ] +'/'
+        result = name
+    else:
+        result = folder + name
+    if not os.path.isdir(folder):
+        os.mkdir(folder)
+
+    l = [N.replace(name, '').replace(split, '').split('.')[0] \
+            for N in os.listdir(folder) if N.startswith(name)]
+    if not '' in l:
+        return result #since default name does not already exist as file.
+    else:
+        l.remove('')
+        x = np.max([int(N) for N in l]) if len(l)>0 else 0
+        return result + split + str(x + 1)
+
+def savefig(fname=None, folder=savedir, Verbose=True, **kwargs):
+    """Saves figure via plt.savefig()
+    
+    Default functionality is to save current active figure, to folder pqol.savedir.
+    The filename defaults to "Untitled X" where X starts blank but counts up,
+    ensuring that similarly-named files are not overwritten.
+    See pqol._convert_to_next_filename,
+    and the documentation below, for more details.
+    
+    Parameters
+    ----------
+    fname : str, or None. Default: None
+        Location to save file.
+        If None, save to _convert_to_next_filename(DEFAULT_SAVE_STR, folder)
+        If str beginning with '/', save to _convert_to_next_filename(fname)
+    folder : str. Default: savedir
+        Folder in which to save file.
+        Ignored if fname starts with '/'
+    Verbose : bool. Default: True
+        If True, prints location to which the plot is saved.
+    **kwargs are passed to plt.savefig
+    """
+    fname = fname if fname is not None else DEFAULT_SAVE_STR
+    saveto = _convert_to_next_filename(fname, folder=folder)
+    bbox_inches = kwargs.pop("bbox_inches", 'tight')
+    plt.savefig(saveto, bbox_inches=bbox_inches, **kwargs)
+    if Verbose: print("Plot saved to",saveto)
+
 #### References to matplotlib built-in colors, markers, etc. ####
 #copied from matplotlib docs.
 
@@ -822,8 +882,8 @@ def colormaps():
     
     plt.show()
     
-
 ## Markers ##
+    
 def markers():
     
     from matplotlib.lines import Line2D
