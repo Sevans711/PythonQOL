@@ -13,18 +13,39 @@ Useful and user-friendly/convenient codes for making matplotlib plots.
 #TODO: implement different left/right yscales to put two plots on same grid.
     #Can be accomplished by just doing:
     #plt.plot(<firstplot>); plt.twinx(); plt.plot(<secondplot>)
+    #However there are QOL issues with labeling, colors, etc, that could be fixed.
 #TODO: implement easy annotation (textboxes etc.)
 #check out illustrator
+#A good example of textbox annotations can be found in answers here:
+#   https://stackoverflow.com/questions/17086847/box-around-text-in-matplotlib
+#TODO: implement default method for saving figures, avoiding overwriting existing files.
 
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import matplotlib.patches as patches
 from scipy.stats import linregress
-
+import os #only used for saving figures.
 
 XYLIM_MARGIN=0.05
 TEXTBOX_MARGIN=0.002
+
+
+#### Current directory 
+pltsavedir = os.getcwd()+'/saved_plots/' if 'pltsavedir' not in locals().keys() \
+                                         else locals()['pltsavedir']
+"""default location for plot saves. Change using set_savedir(new_savedir)"""
+
+def set_savedir(new_savedir):
+    """sets pltsavedir to the new_savedir.
+    
+    pltsavedir is the default location for saved plots.
+    it defaults to os.getcwd()+'/saved_plots/'.
+    access via: import PlotQOL as pqol; pqol.pltsavedir
+    """
+    global pltsavedir
+    pltsavedir = new_savedir
+
 
 #### set better defaults ####
 
@@ -48,11 +69,12 @@ def set_plot_defaults():
     fixfigsize()
     fixfonts()
     
-set_plot_defaults()
+set_plot_defaults() #actually sets the defaults upon loading/importing PlotQOL.py
 
 
 #### slice string interpreter ####
     #Not intrinsically related to "plots" though. belongs in different QOL file?
+    #Used mainly for iplot method, below.
 def str2idx(string):
     """converts s into the indexing tuple it represents.
     
@@ -741,8 +763,10 @@ def _margin(margin, axis="x", ax=None):
     lim = ax.get_xlim() if axis=="x" else (ax.get_ylim() if axis=="y" else None)
     return margin * (lim[1] - lim[0])
 
-#### References to matplotlib colors ####
+#### References to matplotlib built-in colors, markers, etc. ####
 #copied from matplotlib docs.
+
+## Colors ##
 
 def colormaps():
     """Displays all available matplotlib colormaps."""
@@ -796,4 +820,53 @@ def colormaps():
     for cmap_category, cmap_list in cmaps:
         plot_color_gradients(cmap_category, cmap_list)
     
+    plt.show()
+    
+
+## Markers ##
+def markers():
+    
+    from matplotlib.lines import Line2D
+    points = np.ones(3)  # Draw 3 points for each line
+    text_style = dict(horizontalalignment='right', verticalalignment='center',
+                      fontsize=12, fontdict={'family': 'monospace'})
+    marker_style = dict(linestyle=':', color='0.8', markersize=10,
+                        mfc="C0", mec="C0")
+    
+    def format_axes(ax):
+        ax.margins(0)
+        ax.set_axis_off()
+        ax.invert_yaxis()
+    
+    def split_list(a_list):
+        i_half = len(a_list) // 2
+        return (a_list[:i_half], a_list[i_half:])
+        fig, axes = plt.subplots(ncols=2)
+        fig.suptitle('un-filled markers', fontsize=14)
+    
+    fig, axes = plt.subplots(ncols=2)
+    fig.suptitle('un-filled markers', fontsize=14)
+    
+    # Filter out filled markers and marker settings that do nothing.
+    unfilled_markers = [m for m, func in Line2D.markers.items()
+                        if func != 'nothing' and m not in Line2D.filled_markers]
+    
+    for ax, markers in zip(axes, split_list(unfilled_markers)):
+        for y, marker in enumerate(markers):
+            ax.text(-0.5, y, repr(marker), **text_style)
+            ax.plot(y * points, marker=marker, **marker_style)
+        format_axes(ax)
+    
+    fig.tight_layout()
+    fig.subplots_adjust(top=0.7)
+    plt.show()
+    
+    fig, axes = plt.subplots(ncols=2)
+    fig.suptitle('filled markers', fontsize=14)
+    for ax, markers in zip(axes, split_list(Line2D.filled_markers)):
+        for y, marker in enumerate(markers):
+            ax.text(-0.5, y, repr(marker), **text_style)
+            ax.plot(y * points, marker=marker, **marker_style)
+        format_axes(ax)
+
     plt.show()
