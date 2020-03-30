@@ -18,6 +18,7 @@ Useful and user-friendly/convenient codes for making matplotlib plots.
 #check out illustrator
 #A good example of textbox annotations can be found in answers here:
 #   https://stackoverflow.com/questions/17086847/box-around-text-in-matplotlib
+#TODO: use pqol.overlap() to find best location for annotations (e.g. legend).
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -474,7 +475,52 @@ def _get_scatterdata(ax=None):
     ax = ax if ax is not None else plt.gca()
     return [c.get_offsets().T for c in ax.collections]
         
+
+## overlap with data in plot ##
+
+def data_overlap(ax=None, gridsize=(3,3)):
+    """Determines number of data points overlapping each box in a grid.
     
+    Use ax, or plt.gca() if ax is not provided.
+    gridsize=[N_rows, N_cols] number of boxes in y & x directions, evenly spaced.
+    
+    Returns array of shape==gridsize,
+    with array[i][j] == number of data points in box (i=row_num,j=col_num)
+    
+    Examples
+    --------
+    #Try this:
+    x=np.arange(10)
+    plt.scatter(x, x,              marker='x', s=500, color='red')
+    plt.scatter(x, ((x - 4)/2)**2, marker='+', s=500, color='black')
+    overlap = pqol.data_overlap(gridsize=(5,3))
+    im = plt.imshow(overlap, extent=[*plt.gca().get_xlim(), *plt.gca().get_ylim()]);
+    #   ^^extent parameter is necessary to make imshow align with other plots
+    pqol.colorbar(im)
+    """ 
+    (xdata, ydata) = get_data(ax, combine=True)
+    xaxdata = _xcoords_data_to_ax(xdata, ax)
+    yaxdata = _ycoords_data_to_ax(ydata, ax)
+    
+    ym = (  np.arange(gridsize[0]))/gridsize[0]
+    yx = (1+np.arange(gridsize[0]))/gridsize[0]
+    xm = (  np.arange(gridsize[1]))/gridsize[1]
+    xx = (1+np.arange(gridsize[1]))/gridsize[1]
+    in_ybox = [[]]*gridsize[0]
+    in_xbox = [[]]*gridsize[1]
+    for i in range(gridsize[0]):
+        in_ybox[i] = (ym[i] < yaxdata) & (yaxdata < yx[i])
+    for j in range(gridsize[1]):
+        in_xbox[j] = (xm[j] < xaxdata) & (xaxdata < xx[j])
+    
+    r  = np.zeros(gridsize)
+    for i in range(gridsize[0]):
+        for j in range(gridsize[1]):
+            r[i][j] = np.sum(in_xbox[j] & in_ybox[i])
+    
+    r = np.flip(r, axis=0) #since ymax (not ymin) comes first (at top of img.)
+    return r
+
 
 #### annotation ####
 
@@ -698,7 +744,7 @@ def vline(x, text=None, textparams=dict(), textloc=0.5, textanchor="start",
                     **textparams, bbox=bbox, va=va, ha=ha)
         return txt
 
-### convert between data and axes coordinates ###
+## convert between data and axes coordinates ##
 
 def _xy_ax_data_convert(coords, axis="x", convertto="data", ax=None, lim=None):
     """converts coords between ax and data coord systems.
@@ -821,7 +867,7 @@ def savefig(fname=None, folder=savedir, Verbose=True, **kwargs):
     saveto = _convert_to_next_filename(fname, folder=folder)
     bbox_inches = kwargs.pop("bbox_inches", 'tight')
     plt.savefig(saveto, bbox_inches=bbox_inches, **kwargs)
-    if Verbose: print("Plot saved to",saveto)
+    if Verbose: print("Active plot saved to",saveto)
 
 #### References to matplotlib built-in colors, markers, etc. ####
 #copied from matplotlib docs.
@@ -917,8 +963,8 @@ def markers():
             ax.plot(y * points, marker=marker, **marker_style)
         format_axes(ax)
     
-    fig.tight_layout()
-    fig.subplots_adjust(top=0.7)
+    #fig.tight_layout()
+    #fig.subplots_adjust(top=0.7)
     plt.show()
     
     fig, axes = plt.subplots(ncols=2)
