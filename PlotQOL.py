@@ -26,6 +26,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 import matplotlib.patches as patches
 from scipy.stats import linregress
 import os #only used for saving figures.
+from matplotlib.colors import LinearSegmentedColormap #only use for discrete_cmap
 
 XYLIM_MARGIN=0.05
 TEXTBOX_MARGIN=0.002
@@ -252,31 +253,42 @@ def dictplot(x, y=None, yfunc=lambda y:y, xfunc=lambda x:x, keys=None, hide_keys
 
 #### imshow functionality ####
 
-def colorbar(im, ax=None, loc="right", size="5%", pad=0.05, label=None, **kwargs):
+def colorbar(im=None, ax=None, loc="right", size="5%", pad=0.05, label=None,
+             clim=(None, None), discrete=False, **kwargs):
     """draws vertical colorbar with decent size and positioning to the right of data.
-    
-    use via e.g. {im = plt.imshow(); colorbar(im)}.
     
     Parameters
     ----------
-    loc : string
+    im : None or matplotlib.image.AxesImage object. Default: None
+        If None, set to current image.
+    ax : None or Axes object. Default: None
+        If None, set to current axes.
+    loc : string. Default: "right"
         location of colorbar. e.g. "right", "bottom".
         If "bottom", may want to also input orientation="horizontal".
-    size : string
+    size : string. Default: "5%"
         width compared to image. e.g. "5%" means cbar_xaxis is 5% of img_xaxis if loc="right".
-    pad : float
+    pad : float. Default: 0.05
         padding (in inches?) between plot and colorbar.
-    label : None, or string
+    label : None, or string. Default: None
         if passed, will use defaults for pqol.clabel() to label colorbar.
+    clim : (vmin, vmax). Default: (None, None)
+        limits for colorbar
+    discrete : bool. Default: False
+        whether to display colorbar as if cmap for im is discrete.
+        Expands colorbar vmin&vmax to attempt to align ticks on centers of colors.
     **kwargs go to plt.colorbar()
     """
     ax = ax if ax is not None else plt.gca()
-    
+    im = im if im is not None else plt.gci()
+
     # create an axes on the right side of ax. The width of cax will be 5%
     # of ax and the padding between cax and ax will be fixed at 0.05 inch.
     divider = make_axes_locatable(ax)
     cax = divider.append_axes(loc, size=size, pad=pad)
     cbar = plt.colorbar(im, cax=cax, **kwargs)
+    plt.clim(clim)
+    if discrete: plt.clim(discrete_clim(im))
     if label is not None: clabel(label)
     return cbar
 
@@ -284,6 +296,37 @@ def clabel(label, ax=None, rotation= -90, va='baseline', **kwargs):
     """labels active Axes as if it was a vertical colorbar to the right of data."""
     ax = ax if ax is not None else plt.gca()
     return ax.set_ylabel(label, rotation=rotation, va=va, **kwargs)
+
+def discrete_cmap(N, base_cmap=None):
+    """Create an N-bin discrete colormap from the specified input map.
+    
+    base_cmap can be: None (-> default cmap);
+    string of a valid cmap (e.g. 'Blues'. use pqol.colormaps() to see options.);
+    or a cmap object.
+    Adapted from https://gist.github.com/jakevdp/91077b0cae40f8f8244a  
+    
+    Examples
+    --------
+    #Try this:
+    cmap=pqol.discrete_cmap(16, 'tab20')
+    plt.imshow(np.arange(16).reshape(4,4), cmap=cmap)
+    pqol.colorbar(discrete=True)
+    """
+    base = plt.cm.get_cmap(base_cmap)
+    color_list = base(np.linspace(0, 1, N))
+    cmap_name = base.name + str(N)
+    return LinearSegmentedColormap.from_list(cmap_name, color_list, N)
+
+def discrete_clim(im=None):
+    """Determine best clim for aligning tick values on colorbar for discrete im.
+    
+    if im is Nonw, uses current im (plt.gci()).
+    """
+    im = im if im is not None else plt.gci()
+    vm, vx = im.norm.vmin, im.norm.vmax
+    margin = (vx - vm)/(im.cmap.N - 1)
+    return (vm - margin/2, vx + margin/2)
+    
 
 def extend(center, size, shape=None):
     """returns numerical values for extent of box with same aspect ratio as data.
@@ -494,9 +537,11 @@ def data_overlap(ax=None, gridsize=(3,3)):
     plt.scatter(x, x,              marker='x', s=500, color='red')
     plt.scatter(x, ((x - 4)/2)**2, marker='+', s=500, color='black')
     overlap = pqol.data_overlap(gridsize=(5,3))
-    im = plt.imshow(overlap, extent=[*plt.gca().get_xlim(), *plt.gca().get_ylim()]);
+    im = plt.imshow(overlap,
+                    extent=[*plt.gca().get_xlim(), *plt.gca().get_ylim()],
+                    cmap=pqol.discrete_cmap(5, 'viridis'));
     #   ^^extent parameter is necessary to make imshow align with other plots
-    pqol.colorbar(im)
+    pqol.colorbar(discrete=True)
     """ 
     (xdata, ydata) = get_data(ax, combine=True)
     xaxdata = _xcoords_data_to_ax(xdata, ax)
