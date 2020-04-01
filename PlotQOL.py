@@ -569,6 +569,25 @@ def data_overlap(ax=None, gridsize=(3,3)):
 
 #### annotation ####
 
+def ranked_defaultlocs(ax=None, overlap=None, allow_center=True):
+    """ranks default locations for annotation, based on data_overlap for plot.
+    
+    defaults are:
+        upper left, upper center, upper right
+        center left,   center,   center right
+        lower left, lower center, lower right
+        
+    if allow_center is False, will remove 'center' from result.
+    returns a list of these defaults in order from best to worst.
+    """
+    overlap = overlap if overlap is not None \
+                      else data_overlap(ax=ax, gridsize=(3,3))
+    loc_by_number = {0: 'upper left', 1: 'upper center', 2: 'upper right',
+                     3: 'center left',   4: 'center'  , 5: 'center right',
+                     6: 'lower left', 7: 'lower center', 8: 'lower right'}
+    return [loc_by_number[x] for x in overlap.argsort(axis=None)
+                if allow_center or x!=4]
+    
 def linecalc(x1x2,y1y2):
     """returns the parameters for the line through (x1,y1) and (x2,y2)"""
     x1,x2=x1x2
