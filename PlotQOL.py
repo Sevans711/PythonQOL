@@ -148,7 +148,7 @@ def iplot(x, y=None, ss=None, i=None, plotter=plt.plot, iplotter=None, **kwargs)
     
 def dictplot(x, y=None, yfunc=lambda y:y, xfunc=lambda x:x, keys=None, hide_keys=[],
              keys_prefix=None, hide_keys_prefix=[], prefix="", suffix="", 
-             plotter=plt.plot, **kwargs):
+             plotter=plt.plot, legend_badness=0, **kwargs):
     """plots all data from dict on one plot, using keys as labels.
     
     Parameters
@@ -251,7 +251,7 @@ def dictplot(x, y=None, yfunc=lambda y:y, xfunc=lambda x:x, keys=None, hide_keys
             failed_to_plot_keys += [key]
     if failed_to_plot_keys != []:
         print("Warning: failed to plot for keys: "+', '.join(failed_to_plot_keys))
-    plt.legend()
+    legend(badness=legend_badness)
 
 
 
@@ -587,7 +587,6 @@ def legend(badness=0, ax=None, gridsize=(5,5), overlap=None, **kwargs):
     **kwargs go to plt.legend().
     """
     axlocs = best_locs(ax=ax, gridsize=gridsize, overlap=overlap)
-    print(axlocs)
     y, x   = axlocs['loc'][badness] #ax_y & ax_x of lower left corner of best box.
     l = plt.legend(loc='best', bbox_to_anchor=(x, y, axlocs["w"], axlocs["h"]), **kwargs)
         #uses 'best' algorithm of matplotlib within the box selected by pqol.
@@ -1000,7 +999,7 @@ def colormaps():
                 'spring', 'summer', 'autumn', 'winter', 'cool', 'Wistia',
                 'hot', 'afmhot', 'gist_heat', 'copper']),
              ('Diverging', [
-                'PiYG', 'PRGn', 'BrBG', 'PuOr', 'RdGy',a 'RdBu',
+                'PiYG', 'PRGn', 'BrBG', 'PuOr', 'RdGy', 'RdBu',
                 'RdYlBu', 'RdYlGn', 'Spectral', 'coolwarm', 'bwr', 'seismic']),
              ('Cyclic', ['twilight', 'twilight_shifted', 'hsv']),
              ('Qualitative', [
