@@ -18,7 +18,11 @@ Useful and user-friendly/convenient codes for making matplotlib plots.
 #check out illustrator
 #A good example of textbox annotations can be found in answers here:
 #   https://stackoverflow.com/questions/17086847/box-around-text-in-matplotlib
-#TODO: use pqol.overlap() to find best location for annotations (e.g. legend).
+#TODO: "plot annotate edit mode":
+#   one function will print numbered boxes on plot, numbered asc.
+#       based on smallest data_overlap.
+#   another function will allow you to enter just a number and the text you want
+#       to create your annotation where that numbered box was.
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -459,7 +463,7 @@ def _find_ylim(xlim=True, data=None, ax=None, margin=XYLIM_MARGIN):
     """returns ylim based on xlim. see _find_xylim for further documentation."""
     return _find_xylim(xlim=xlim, ylim=None, data=data, ax=ax, margin=margin)
     
-
+ 
 ## get data from plot ##
 
 def get_data(ax=None, combine=False):
@@ -547,27 +551,72 @@ def data_overlap(ax=None, gridsize=(3,3)):
     xaxdata = _xcoords_data_to_ax(xdata, ax)
     yaxdata = _ycoords_data_to_ax(ydata, ax)
     
-    ym = (  np.arange(gridsize[0]))/gridsize[0]
-    yx = (1+np.arange(gridsize[0]))/gridsize[0]
-    xm = (  np.arange(gridsize[1]))/gridsize[1]
-    xx = (1+np.arange(gridsize[1]))/gridsize[1]
+    ys, xs = _grid_ax_coords(gridsize)
     in_ybox = [[]]*gridsize[0]
     in_xbox = [[]]*gridsize[1]
     for i in range(gridsize[0]):
-        in_ybox[i] = (ym[i] < yaxdata) & (yaxdata < yx[i])
+        in_ybox[i] = (ys[i] > yaxdata) & (yaxdata > ys[i+1])
     for j in range(gridsize[1]):
-        in_xbox[j] = (xm[j] < xaxdata) & (xaxdata < xx[j])
+        in_xbox[j] = (xs[j] < xaxdata) & (xaxdata < xs[j+1])
     
     r  = np.zeros(gridsize)
     for i in range(gridsize[0]):
         for j in range(gridsize[1]):
             r[i][j] = np.sum(in_xbox[j] & in_ybox[i])
     
-    r = np.flip(r, axis=0) #since ymax (not ymin) comes first (at top of img.)
     return r
 
+def _grid_ax_coords(gridsize, origin="upper"):
+    """returns ax coords of gridpoints for gridsize=[N_rows, N_cols].
+    
+    Returns [yvals, xvals] which represent intersections of gridlines;
+    thus len(yi)=N_rows+1 and len(xi)=N_cols+1.
+    If origin="upper", the box numbering is assumed to begin
+    """
+    yl, xl = gridsize
+    return [np.arange(yl + 1)[::-1]/yl, np.arange(xl + 1)/xl]
 
 #### annotation ####
+    
+def legend(badness=0, ax=None, gridsize=(5,5), overlap=None, **kwargs):
+    """puts a legend where pqol thinks is best, based on data in plot.
+    
+    increase badness value to use next-to-best locations.
+    (e.g. badness=1 uses second-best location; badness=2 uses third-best.)
+    gridsize allows for finer or coarser search.
+    **kwargs go to plt.legend().
+    """
+    axlocs = best_locs(ax=ax, gridsize=gridsize, overlap=overlap)
+    print(axlocs)
+    y, x   = axlocs['loc'][badness] #ax_y & ax_x of lower left corner of best box.
+    l = plt.legend(loc='best', bbox_to_anchor=(x, y, axlocs["w"], axlocs["h"]), **kwargs)
+        #uses 'best' algorithm of matplotlib within the box selected by pqol.
+    return l
+    
+def best_locs(ax=None, gridsize=(5,5), overlap=None):
+    """returns emptiest locations, in axes coordinates, based on overlap.
+    
+    return will be a dict with keys "loc", "w", "h".
+    r["loc"][i] will be the axis coords for the lower left corner of
+    the i'th emptiest gridbox. 
+    (r["w"], r["h"]) will be the (width,height) in axes coords of a gridbox.
+    """
+    ii     = _best_locs_i(ax=ax, gridsize=gridsize, overlap=overlap)
+    ys, xs = _grid_ax_coords(gridsize)
+    
+    axlocs = [(ys[yi+1], xs[xi]) for yi,xi in np.transpose(ii)]
+    return dict(loc=axlocs, w=xs[1]-xs[0], h=ys[0]-ys[1])
+
+def _best_locs_i(ax=None, gridsize=(5,5), overlap=None):
+    """returns empitest locations, in grid indices, based on overlap.
+    
+    return will be a list [yvals, xvals], with each (yvals[i], xvals[i])
+    being the indices for the i'th emptiest gridbox.
+    """
+    overlap = overlap if overlap is not None else \
+              data_overlap(ax=ax, gridsize=gridsize)
+    return np.unravel_index(overlap.argsort(axis=None), gridsize)    
+    
 
 def ranked_defaultlocs(ax=None, overlap=None, allow_center=True):
     """ranks default locations for annotation, based on data_overlap for plot.
@@ -951,7 +1000,7 @@ def colormaps():
                 'spring', 'summer', 'autumn', 'winter', 'cool', 'Wistia',
                 'hot', 'afmhot', 'gist_heat', 'copper']),
              ('Diverging', [
-                'PiYG', 'PRGn', 'BrBG', 'PuOr', 'RdGy', 'RdBu',
+                'PiYG', 'PRGn', 'BrBG', 'PuOr', 'RdGy',a 'RdBu',
                 'RdYlBu', 'RdYlGn', 'Spectral', 'coolwarm', 'bwr', 'seismic']),
              ('Cyclic', ['twilight', 'twilight_shifted', 'hsv']),
              ('Qualitative', [
