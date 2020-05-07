@@ -55,6 +55,32 @@ def pop_from_kwargs(popthis, kwargs, default=None):
     popped = kwargs.pop(popthis, default)
     return (popped, kwargs)
 
+def strmatch(x, str_to_match):
+    """returns whether x 'matches' str_to_match.
+    
+    A 'match' is equality, or leading/trailing *'s to stand in for anything.
+    Cannot test for strings with non-special *'s in them.
+    
+    Examples
+    --------------
+    hello  matches   hello
+     *lo   matches   hello
+     he*   matches   hello
+    *ll*   matches   hello
+    *he*   matches   hello
+    el* doesnt match hello
+    *el doesnt match hello
+    """
+    if x[0]=='*':
+        if x[-1]=='*':
+            return (x[1:-1] in str_to_match)
+        else:
+            return str_to_match.endswith(x[1:])
+    elif x[-1]=='*':
+        return str_to_match.startswith(x[:-1])
+    else:
+        return x==str_to_match
+
 """
 #Simple example of using a wrapper function to do something if error occurs,
 #   then propagate the error forward (without handling it).
