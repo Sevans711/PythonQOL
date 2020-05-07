@@ -10,6 +10,7 @@ Useful and user-friendly/convenient codes for making matplotlib plots.
 
 #TODO: implement title for colorbar()
 #TODO: implement scatter plot marker cycle
+#TODO: investigate using cycler to do cycles.
 #TODO: implement different left/right yscales to put two plots on same grid.
     #Can be accomplished by just doing:
     #plt.plot(<firstplot>); plt.twinx(); plt.plot(<secondplot>)
@@ -23,6 +24,10 @@ Useful and user-friendly/convenient codes for making matplotlib plots.
 #       based on smallest data_overlap.
 #   another function will allow you to enter just a number and the text you want
 #       to create your annotation where that numbered box was.
+#TODO: determine size of a textbox or legend before it is plotted - use that to inform how you plot.
+#TODO: create concise summary of the best functions in PlotQOL. put on git or here.
+#   e.g. do_ylim, do_xlim, legend, savefig, colorbar.
+
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -31,6 +36,9 @@ import matplotlib.patches as patches
 from scipy.stats import linregress
 import os #only used for saving figures.
 from matplotlib.colors import LinearSegmentedColormap #only use for discrete_cmap
+
+from CodeQOL import strmatch #only used in pqol.dictplot
+from CodeQOL import strmatches #only used in pqol.dictplot
 
 XYLIM_MARGIN=0.05
 TEXTBOX_MARGIN=0.002
@@ -146,9 +154,9 @@ def iplot(x, y=None, ss=None, i=None, plotter=plt.plot, iplotter=None, **kwargs)
     else:
         return plotter(x, y, **kwargs)
     
-def dictplot(x, y=None, yfunc=lambda y:y, xfunc=lambda x:x, keys=None, hide_keys=[],
-             keys_prefix=None, hide_keys_prefix=[], prefix="", suffix="", 
-             plotter=plt.plot, legend_badness=0, **kwargs):
+def dictplot(x, y=None, yfunc=lambda y:y, xfunc=lambda x:x,
+             keys=None, hide_keys=None, prefix='', suffix='', 
+             plotter=plt.plot, legend_badness=0, stylize_keys=None, **kwargs):
     """plots all data from dict on one plot, using keys as labels.
     
     Parameters
@@ -166,20 +174,30 @@ def dictplot(x, y=None, yfunc=lambda y:y, xfunc=lambda x:x, keys=None, hide_keys
         runs on all x-axis data before plotting. Default is x -> x                                       
     keys : None, or list of strings.
         Will only plot for key in keys and in dict.
+        keys can use leading and/or trailing '*' as wildcard.
+        e.g. keys=['*12', 'ux*'] includes all keys ending in '12' or starting with 'ux'.
     hide_keys : [], or list of strings.
         Will not show any key in hide_keys.
-    keys_prefix : None, string, or list of strings.
-        Only plot keys starting with keys_prefix in dict.
-        If keys is not None, adds to list of keys instead
-    hide_keys_prefix : [], string, or list of strings.
-        Hide all keys starting with any hide_keys_prefix.
-        Subtracts from list of keys to plot if hide_keys_prefix is not None.
+        keys can use leading and/or trailing '*' as wildcard.
+        e.g. hide_keys=['*_1*', 'bz'] hides all keys containing '_1' or equal to 'bz'.
     prefix : string
         prefix to all labels. (useful if plotting multiple dicts with same keys.)
     suffix : string
         suffix to all labels. (useful if plotting multiple dicts with same keys.)
     plotter : function
         Must accept x and y as args; label and **kwargs as kwargs.
+    legend_badness : integer >= 0. Default 0.
+        Badness in legend placement based on pqol.legend()
+    stylize_keys : None or [str, style_dict] or [s1, sd1, ..., sN, sdN]. Default None.
+        Stylize keys that match str, using style_dict.
+        e.g.:
+        stylize_keys=['ux*', dict(lw=1)]
+            will change lw to 1 for keys starting with 'ux', only.
+        stylize_keys=['ux*', dict(lw=1), '*b*', dict(lw=7)]
+            lw=1 for keys starting with 'ux', and lw=7 for keys containing 'b'.
+        stylize_keys=[['ux*','*12'], dict(ls='--'), 'ez', dict(color='blue')]
+            lw=1 for keys starting with 'ux' or ending in '12', and
+            color=blue for key equal to 'ez'.
     **kwargs are passed to plotter.
     
     Examples
@@ -206,29 +224,15 @@ def dictplot(x, y=None, yfunc=lambda y:y, xfunc=lambda x:x, keys=None, hide_keys
     pqol.dictplot("xData", d, plotter=pqol.iplot, ss="3:8", iplotter=plt.scatter)
     plt.title("plot F"); plt.xlim(xlims); plt.ylim(ylims); plt.show()
     """
-    def set_keys(d, keys=None, keys_prefix=None, hide_keys=[], hide_keys_prefix=[]):
-        do_keys = d.keys() if (keys is None and keys_prefix is None)     else \
-                    []     if (keys is None and keys_prefix is not None) else \
-                    keys
-        if keys_prefix is not None:
-            if type(keys_prefix)==str: keys_prefix=[keys_prefix]
-            pre_keys = [key for p in keys_prefix for key in d.keys() if key.startswith(p)]
-            do_keys = [key for key in pre_keys if key not in do_keys] + do_keys
-        do_keys = [key for key in do_keys if not key in hide_keys]
-        hkp = hide_keys_prefix;
-        hkp = [hkp] if (type(hkp)==str) else hkp
-        hkp = [key for p in hkp for key in do_keys if key.startswith(p)]
-        do_keys = [key for key in do_keys if not key in hkp]
-        return do_keys
-    
     if y is None:
         d = x
-        keys = set_keys(d, keys, keys_prefix, hide_keys, hide_keys_prefix)
+        keys = strmatches(d.keys(), keys, hide_keys)
         xvals = np.arange(len(yfunc(x[keys[0]]))) #may be inefficient for expensive yfunc.
         xvals = {key: (xvals) for key in keys}
     else:
         d = y
-        keys = set_keys(d, keys, keys_prefix, hide_keys, hide_keys_prefix)
+        keys = strmatches(d.keys(), keys, hide_keys)
+        print(keys)
         if type(x)==str:
             if x not in d.keys():
                 print("Error, x (str) must be a key of y (dict).")
@@ -242,20 +246,33 @@ def dictplot(x, y=None, yfunc=lambda y:y, xfunc=lambda x:x, keys=None, hide_keys
             xvals = x
         else:
             xvals = {key: (x) for key in keys}
+           
     failed_to_plot_keys = []
-    for key in keys:
+    for key in keys:  
+        
+        if stylize_keys is None:
+            kwargcopy = kwargs
+        else:
+            kwargcopy = {k:v for k,v in kwargs.items()}
+            for i in range(len(stylize_keys)//2):
+                (s_i, style_dict_i) = (stylize_keys[2*i], stylize_keys[2*i+1])
+                s_i = [s_i] if type(s_i)==str else s_i
+                for s in s_i:
+                    if strmatch(s, key):
+                        kwargcopy.update(style_dict_i)      
         try:
             plotter(xfunc(xvals[key]), yfunc(d[key]),
-                    label=prefix+key+suffix, **kwargs)
+                    label=prefix+key+suffix, **kwargcopy)
         except:
             failed_to_plot_keys += [key]
+            
     if failed_to_plot_keys != []:
         print("Warning: failed to plot for keys: "+', '.join(failed_to_plot_keys))
     legend(badness=legend_badness)
 
 
 
-#### imshow functionality ####
+#### colorbars and colors ####
 
 def colorbar(im=None, ax=None, loc="right", size="5%", pad=0.05, label=None,
              clim=(None, None), discrete=False, **kwargs):
@@ -315,6 +332,10 @@ def discrete_cmap(N, base_cmap=None):
     cmap=pqol.discrete_cmap(16, 'tab20')
     plt.imshow(np.arange(16).reshape(4,4), cmap=cmap)
     pqol.colorbar(discrete=True)
+    
+    #Also this:
+    for i in range(5):
+        
     """
     base = plt.cm.get_cmap(base_cmap)
     color_list = base(np.linspace(0, 1, N))
@@ -331,7 +352,34 @@ def discrete_clim(im=None):
     margin = (vx - vm)/(im.cmap.N - 1)
     return (vm - margin/2, vx + margin/2)
     
+def Nth_color(N, cmap=None, n_discrete=None):
+    """returns the Nth color in the default color cycle, or cmap if passed.
+    
+    N counts up from 0.
+    if n_discrete is entered, uses cmap=discrete_cmap(n_discrete, cmap).
+    if cmap is entered without n_discrete, cmap must be a colormap object.
+    
+    Examples
+    --------
+    #Nth_color(1) is orange; the second color in the default color cycle.
+    #Try this:
+    for i in range(12):
+        plt.plot(i + np.arange(5), color=pqol.Nth_color(i, 'plasma', 10))
+    """
+    if cmap is None:
+        colors = [x['color'] for x in list(plt.rcParams['axes.prop_cycle'])]
+        return colors[N % len(colors)]
+    elif n_discrete is None:
+        return cmap[N]
+    else:
+        return discrete_cmap(n_discrete, cmap)(N % n_discrete)
+        
+    
 
+#### field of view ####
+
+## imshow field of view ##
+    
 def extend(center, size, shape=None):
     """returns numerical values for extent of box with same aspect ratio as data.
     
@@ -351,12 +399,6 @@ def extend(center, size, shape=None):
     y_B = center[1] - size/2.
     return [x_L, x_L + xsize, y_B, y_B + ysize]
 
-
-
-#### field of view ####
-
-## imshow field of view ##
-    
 def zoom(center, size, shape=None, ax=None):
     """Zooms into region centered on center with size size.
     
@@ -588,7 +630,7 @@ def legend(badness=0, ax=None, gridsize=(5,5), overlap=None, **kwargs):
     """
     axlocs = best_locs(ax=ax, gridsize=gridsize, overlap=overlap)
     y, x   = axlocs['loc'][badness] #ax_y & ax_x of lower left corner of best box.
-    l = plt.legend(loc='best', bbox_to_anchor=(x, y, axlocs["w"], axlocs["h"]), **kwargs)
+    l = plt.legend(loc='upper left', bbox_to_anchor=(x, y, axlocs["w"], axlocs["h"]), **kwargs)
         #uses 'best' algorithm of matplotlib within the box selected by pqol.
     return l
     
@@ -615,26 +657,6 @@ def _best_locs_i(ax=None, gridsize=(5,5), overlap=None):
     overlap = overlap if overlap is not None else \
               data_overlap(ax=ax, gridsize=gridsize)
     return np.unravel_index(overlap.argsort(axis=None), gridsize)    
-    
-
-def ranked_defaultlocs(ax=None, overlap=None, allow_center=True):
-    """ranks default locations for annotation, based on data_overlap for plot.
-    
-    defaults are:
-        upper left, upper center, upper right
-        center left,   center,   center right
-        lower left, lower center, lower right
-        
-    if allow_center is False, will remove 'center' from result.
-    returns a list of these defaults in order from best to worst.
-    """
-    overlap = overlap if overlap is not None \
-                      else data_overlap(ax=ax, gridsize=(3,3))
-    loc_by_number = {0: 'upper left', 1: 'upper center', 2: 'upper right',
-                     3: 'center left',   4: 'center'  , 5: 'center right',
-                     6: 'lower left', 7: 'lower center', 8: 'lower right'}
-    return [loc_by_number[x] for x in overlap.argsort(axis=None)
-                if allow_center or x!=4]
     
 def linecalc(x1x2,y1y2):
     """returns the parameters for the line through (x1,y1) and (x2,y2)"""
@@ -971,7 +993,6 @@ def savefig(fname=None, folder=savedir, Verbose=True, **kwargs):
     folder : str. Default: savedir
         Folder in which to save file.
         Ignored if fname starts with '/'
-    Verbose : bool. Default: True
         If True, prints location to which the plot is saved.
     **kwargs are passed to plt.savefig
     """
