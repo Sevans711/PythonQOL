@@ -332,10 +332,6 @@ def discrete_cmap(N, base_cmap=None):
     cmap=pqol.discrete_cmap(16, 'tab20')
     plt.imshow(np.arange(16).reshape(4,4), cmap=cmap)
     pqol.colorbar(discrete=True)
-    
-    #Also this:
-    for i in range(5):
-        
     """
     base = plt.cm.get_cmap(base_cmap)
     color_list = base(np.linspace(0, 1, N))
@@ -345,7 +341,7 @@ def discrete_cmap(N, base_cmap=None):
 def discrete_clim(im=None):
     """Determine best clim for aligning tick values on colorbar for discrete im.
     
-    if im is Nonw, uses current im (plt.gci()).
+    if im is None, uses current im (plt.gci()).
     """
     im = im if im is not None else plt.gci()
     vm, vx = im.norm.vmin, im.norm.vmax
@@ -356,6 +352,7 @@ def Nth_color(N, cmap=None, n_discrete=None):
     """returns the Nth color in the default color cycle, or cmap if passed.
     
     N counts up from 0.
+    N may be an integer or list of integers.
     if n_discrete is entered, uses cmap=discrete_cmap(n_discrete, cmap).
     if cmap is entered without n_discrete, cmap must be a colormap object.
     
@@ -368,12 +365,11 @@ def Nth_color(N, cmap=None, n_discrete=None):
     """
     if cmap is None:
         colors = [x['color'] for x in list(plt.rcParams['axes.prop_cycle'])]
-        return colors[N % len(colors)]
+        return np.array(colors)[np.mod(N,len(colors))]
     elif n_discrete is None:
-        return cmap[N]
+        return cmap(np.mod(N, cmap.N))
     else:
-        return discrete_cmap(n_discrete, cmap)(N % n_discrete)
-        
+        return discrete_cmap(n_discrete, cmap)(np.mod(N,n_discrete))
     
 
 #### field of view ####
