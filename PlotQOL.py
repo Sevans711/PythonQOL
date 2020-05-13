@@ -964,11 +964,8 @@ def _convert_to_next_filename(name, folder=savedir):
         name   = name[i+1:  ]
     if not os.path.isdir(folder):
         os.mkdir(folder)
-    print(os.listdir(folder), name)
-    print([x for x in os.listdir(folder) if x.endswith(name)])
     l = [N.split('.')[0].replace(name, '').replace(split, '') \
             for N in os.listdir(folder) if N.split('.')[0].endswith(name)]
-    print(l)
     if not '' in l:
         return folder + name #since default name does not already exist as file.
     else:
