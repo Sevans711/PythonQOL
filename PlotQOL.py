@@ -27,6 +27,9 @@ Useful and user-friendly/convenient codes for making matplotlib plots.
 #TODO: determine size of a textbox or legend before it is plotted - use that to inform how you plot.
 #TODO: create concise summary of the best functions in PlotQOL. put on git or here.
 #   e.g. do_ylim, do_xlim, legend, savefig, colorbar.
+#TODO: properly implement do_ylim for log-scale plots.
+#TODO: fix _convert_to_next_filename() behavior when files with similar names are in folder.
+#   e.g. "test hi" and "test hi there" -> error for function when it hits "test hi".
 
 
 import numpy as np
@@ -224,6 +227,7 @@ def dictplot(x, y=None, yfunc=lambda y:y, xfunc=lambda x:x,
     pqol.dictplot("xData", d, plotter=pqol.iplot, ss="3:8", iplotter=plt.scatter)
     plt.title("plot F"); plt.xlim(xlims); plt.ylim(ylims); plt.show()
     """
+    ## SET UP KEYS TO PLOT ##
     if y is None:
         d = x
         keys = strmatches(d.keys(), keys, hide_keys)
@@ -232,7 +236,6 @@ def dictplot(x, y=None, yfunc=lambda y:y, xfunc=lambda x:x,
     else:
         d = y
         keys = strmatches(d.keys(), keys, hide_keys)
-        print(keys)
         if type(x)==str:
             if x not in d.keys():
                 print("Error, x (str) must be a key of y (dict).")
@@ -246,7 +249,8 @@ def dictplot(x, y=None, yfunc=lambda y:y, xfunc=lambda x:x,
             xvals = x
         else:
             xvals = {key: (x) for key in keys}
-           
+    
+    ## PLOT AND STYLIZE KEYS ##       
     failed_to_plot_keys = []
     for key in keys:  
         
@@ -616,7 +620,7 @@ def _grid_ax_coords(gridsize, origin="upper"):
 
 #### annotation ####
     
-def legend(badness=0, ax=None, gridsize=(5,5), overlap=None, **kwargs):
+def legend(badness=0, ax=None, gridsize=(3,3), overlap=None, **kwargs):
     """puts a legend where pqol thinks is best, based on data in plot.
     
     increase badness value to use next-to-best locations.
@@ -948,28 +952,29 @@ def _convert_to_next_filename(name, folder=savedir):
     Folder will be part of return; i.e. result contains the full path.
     If name starts with '/', ignores the 'folder' kwarg.
     Attempts to make folder if implied folder does not exist.
-    Convention is to use filenames in order: [name, name 1, name 2, ...].
+    Convention is to use filenames in order: [name, 1- name, 2- name, ...].
     Will not re-use earlier names if files are deleted.
-    e.g. if only [name, name 3, name 4] exist, will return name 5, not name 1.
+    e.g. if only [name, 3- name, 4- name] exist, will return 5- name, not 1- name.
     """
-    split = " " #splits name and number.
+    split = "- " #splits name and number.
     
     if name.startswith('/'):
-        folder = name[ : (name.rfind('/')) ] +'/'
-        result = name
-    else:
-        result = folder + name
+        i = name.rfind('/')
+        folder = name[   : i] +'/'
+        name   = name[i+1:  ]
     if not os.path.isdir(folder):
         os.mkdir(folder)
-
-    l = [N.replace(name, '').replace(split, '').split('.')[0] \
-            for N in os.listdir(folder) if N.startswith(name)]
+    print(os.listdir(folder), name)
+    print([x for x in os.listdir(folder) if x.endswith(name)])
+    l = [N.split('.')[0].replace(name, '').replace(split, '') \
+            for N in os.listdir(folder) if N.split('.')[0].endswith(name)]
+    print(l)
     if not '' in l:
-        return result #since default name does not already exist as file.
+        return folder + name #since default name does not already exist as file.
     else:
         l.remove('')
         x = np.max([int(N) for N in l]) if len(l)>0 else 0
-        return result + split + str(x + 1)
+        return folder + str(x + 1) + split + name
 
 def savefig(fname=None, folder=savedir, Verbose=True, **kwargs):
     """Saves figure via plt.savefig()
