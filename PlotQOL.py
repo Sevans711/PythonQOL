@@ -44,6 +44,7 @@ from matplotlib.colors import LinearSegmentedColormap #only use for discrete_cma
 from CodeQOL import strmatch #only used in pqol.dictplot
 from CodeQOL import strmatches #only used in pqol.dictplot
 
+DEFAULT_FIGSIZE=(6,6)       #for fixfigsize
 XYLIM_MARGIN=0.05           #for do_xlim, do_ylim
 TEXTBOX_MARGIN=0.002        #for hline, vline
 DEFAULT_SAVE_STR="Untitled" #for savefig
@@ -68,7 +69,7 @@ Access using import PlotQOL as pqol; pqol.savedir
 
 #### set better defaults ####
 
-def fixfonts(s=14, m=18, l=22):
+def fixfonts(s=12, m=15, l=18):
     """sets better default font sizes for plots"""
     plt.rc('axes', titlesize=l)    # fontsize of the axes title
     plt.rc('figure', titlesize=l)  # fontsize of the figure title
@@ -81,7 +82,7 @@ def fixfonts(s=14, m=18, l=22):
     plt.rc('ytick', labelsize=s)   # fontsize of the tick labels
     
 
-def fixfigsize(size=(8,8)):
+def fixfigsize(size=DEFAULT_FIGSIZE):
     """sets better default figure size for plots"""
     plt.rcParams['figure.figsize'] = size
     
@@ -370,9 +371,24 @@ def discrete_clim(im=None):
     """
     im = im if im is not None else plt.gci()
     vm, vx = im.norm.vmin, im.norm.vmax
-    margin = (vx - vm)/(im.cmap.N - 1)
+    margin = (vx - vm)/((im.cmap.N - 1))
     return (vm - margin/2, vx + margin/2)
     
+def discrete_imshow(data, step=1, base_cmap=None, **kwargs):
+    """imshow of data with discrete colormap generated automatically.
+    
+    To add a well-formatted discrete colorbar, use pqol.colorbar(discrete=True)
+    
+    step is step between discrete values; it is 1 by default.
+    base_cmap is used by discrete_cmap; see documentation there for allowed values.
+    **kwargs go to imshow.
+    
+    returns image (=plt.imshow(...))
+    """
+    N = data.max() - data.min()
+    cmap = discrete_cmap(N//step + 1, base_cmap=base_cmap) #integer division
+    return plt.imshow(data, cmap=cmap, **kwargs)
+
 def Nth_color(N, cmap=None, n_discrete=None):
     """returns the Nth color in the default color cycle, or cmap if passed.
     
@@ -677,7 +693,7 @@ def text(s, ax_xy=None, badness=0, ax=None, gridsize=DEFAULT_GRIDSIZE,
     va = va if va is not None else kwargs.pop('va', default_va)
     t = plt.text(x, y, s, bbox=bbox, ha=ha, va=va, **kwargs)
     return t
-    
+     
 def legend(badness=0, ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None, **kwargs):
     """puts a legend where pqol thinks is best, based on data in plot.
     
