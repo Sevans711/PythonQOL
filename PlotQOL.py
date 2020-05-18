@@ -653,6 +653,7 @@ def text(s, ax_xy=None, badness=0, ax=None, gridsize=DEFAULT_GRIDSIZE,
     e.g. ax_xy = (0.7, 0.2) places text 70% across from left, & 20% up from bottom.
     If ax_xy is not passed, picks location based on data in plot.
     increase badness value to use next-to-best locations.
+    For coordinates in terms of data, use plt.text().
     **kwargs go to plt.text()
     """
     default_bbox = dict(facecolor='none')
@@ -662,7 +663,7 @@ def text(s, ax_xy=None, badness=0, ax=None, gridsize=DEFAULT_GRIDSIZE,
     if ax_xy is not None:
         x, y = ax_xy
     else:
-        axlocs = best_locs(ax=ax, gridsize=gridsize, overlap=overlap)
+        axlocs = locs_best(ax=ax, gridsize=gridsize, overlap=overlap)
         y, x   = axlocs['loc'][badness] #ax_y & ax_x of lower left corner of best box.
         y += axlocs['h']/2.
         x += axlocs['w']/2.
@@ -685,31 +686,77 @@ def legend(badness=0, ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None, **kwargs
     gridsize allows for finer or coarser search.
     **kwargs go to plt.legend().
     """
-    axlocs = best_locs(ax=ax, gridsize=gridsize, overlap=overlap)
+    axlocs = locs_best(ax=ax, gridsize=gridsize, overlap=overlap)
     y, x   = axlocs['loc'][badness] #ax_y & ax_x of lower left corner of best box.
     l = plt.legend(loc='upper left', bbox_to_anchor=(x, y, axlocs["w"], axlocs["h"]), **kwargs)
         #uses 'best' algorithm of matplotlib within the box selected by pqol.
     return l
 
+def locs_visual(ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None,
+                cmap='cividis', **kwargs):
+    """visual representation of emptiest locations based on overlap with data.
+    
+    overplots a grid of numbered boxes, numbered according to their 'badness'.
+    'badness' measures overlap with data, and the numbers on the plot from this
+    function agree with the badness keyword in pqol.legend() and pqol.text().
+    ties are determined arbitrarily (by default np.argsort sorting of overlap).
+    **kwargs go to imshow.
+    
+    returns result of locs_best().
+    
+    Examples
+    --------
+    #try this:
+    x = np.arange(-5, 4, 0.7)
+    plotstyle = dict(markersize=20, fillstyle='none')
+    plt.plot(x,       x**2     , marker='^', **plotstyle)
+    plt.plot(x, 8*(1+np.cos(x)), marker='o', **plotstyle)
+    pqol.locs_visual()
+    """
+    if overlap is None: overlap = data_overlap(ax=ax, gridsize=gridsize)
+    else: gridsize = overlap.shape
+    #return overlap
+    ii = _locs_best_i(ax=ax, gridsize=gridsize, overlap=overlap)
+    #return ii
+    axlocs = locs_best(gridsize=gridsize, locs_best_i=ii)
+    w2, h2 = axlocs['w']/2, axlocs['h']/2
+    for i in range(len(axlocs['loc'])):
+        y, x = axlocs['loc'][i]
+        text(str(i), (x+w2, y+h2)) #<<< badness --> text in center of gridbox.
+        text("N = "+str(int(overlap[ ii[0][i],ii[1][i] ])), 
+             (x+axlocs['w'], y), bbox=None, fontsize=10, va='bottom', ha='right') 
+    plt.imshow(overlap,
+               extent = [*plt.gca().get_xlim(), *plt.gca().get_ylim()],
+               cmap   = discrete_cmap(overlap.max()+1, cmap),
+               alpha  = 0.3,
+               aspect = 'auto',
+               **kwargs)
+    grid_sized(gridsize, color='black', lw=1)
+    colorbar(discrete=True)
+    return axlocs
+    
 
-
-def best_locs(ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None):
-    """returns emptiest locations, in axes coordinates, based on overlap.
+def locs_best(ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None, locs_best_i=None):
+    """returns emptiest locations, in axes coordinates, based on overlap with data.
     
     return will be a dict with keys "loc", "w", "h".
     r["loc"][i] will be the axis coords (y, x) for the lower left corner of
     the i'th emptiest gridbox. 
     (r["w"], r["h"]) will be the (width,height) in axes coords of a gridbox.
+    
+    if overlap is not None, ignores gridsize & ax.
+    if locs_best_i is not None, this is used instead of doing _locs_best_i().
     """
-    ii     = _best_locs_i(ax=ax, gridsize=gridsize, overlap=overlap)
-    print(ii)
-    ys, xs = _grid_ax_coords(gridsize)
-    print(ys, xs)
+    if locs_best_i is not None: ii = locs_best_i
+    else: ii = _locs_best_i(ax=ax, gridsize=gridsize, overlap=overlap)
+    
+    gridsize = gridsize if overlap is None else overlap.shape
+    ys, xs   = _grid_ax_coords(gridsize)
     
     axlocs = [(ys[yi+1], xs[xi]) for yi,xi in np.transpose(ii)]
     return dict(loc=axlocs, w=xs[1]-xs[0], h=ys[0]-ys[1])
 
-def _best_locs_i(ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None):
+def _locs_best_i(ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None):
     """returns empitest locations, in grid indices, based on overlap.
     
     return will be a list [yvals, xvals], with each (yvals[i], xvals[i])
@@ -753,6 +800,51 @@ def labelline(xy, xyvars=('x', 'y'), s="{:} = {:.2e} * {:} + {:.2e}"):
     l = linregress(xy)
     return s.format(xyvars[1], l.slope, xyvars[0], l.intercept)
 
+def grid_sized(gridsize, ax=None, color='black', **kwargs):
+    """draws a grid of size gridsize=(Nrows,Ncols)=(Nboxes_y, Nboxes_x).
+    
+    **kwargs go to grid() -> vline()/hline() -> plt.axvline()/plt.axhline().
+    """
+    ys, xs = _grid_ax_coords(gridsize)
+    ys = _ycoords_ax_to_data(ys, ax=ax)
+    xs = _xcoords_ax_to_data(xs, ax=ax)
+    return grid(xs[1:-1], ys[1:-1], color=color, **kwargs) #probably None-typed
+
+def grid(x, y, ax=None, hparams=dict(), vparams=dict(), **kwargs):
+    """draws a grid on plot. **kwargs go to hline & vline.
+    
+    x = list of x values for gridlines, in data coordinates.
+    y = list of y values for gridlines, in data coordinates.
+    hparams / vparams pass keywords to hline / vline.
+    hparams / vparams override any conflicting kwargs.
+    
+    For labeling purposes,
+    '*x' / '*y' will be replaced with x / y value at vline / hline.
+    
+    Examples
+    --------
+    #try this:
+    xvals = np.arange(-5, 4, 0.2)
+    plt.plot(xvals, 2*np.sin(xvals))
+    pqol.grid([-3.1415, -0.5, 2.9],[-2, -1.5, 0 ,2.0],
+              vparams=dict(text='value=*x', textloc=0.9, textdirection='down',
+                           textside='right', textparams=dict(fontweight='bold')),
+              hparams=dict(color='green'),
+              linestyle='-.', color='black')
+    """
+    vp = dict(); vp.update(kwargs); vp.update(vparams)
+    hp = dict(); hp.update(kwargs); hp.update(hparams)
+    if 'text' in vp.keys(): vtext = vp['text']
+    if 'text' in hp.keys(): htext = hp['text']
+    update_text_v = 'text' in vp.keys() and '*x' in vp['text']
+    update_text_h = 'text' in hp.keys() and '*y' in hp['text']
+    for xval in x:
+        if update_text_v: vp['text']=vtext.replace('*x',str(xval))
+        vline(xval, **vp)
+    for yval in y:
+        if update_text_h: hp['text']=htext.replace('*y',str(yval))
+        hline(yval, **hp)
+    
 def hline(y, text=None, textparams=dict(), textloc=0.5, textanchor="start",
           textside="top", textmargin=TEXTBOX_MARGIN,
           xmin=0, xmax=1, yspec="data", xspec="axes", textspec="axes",
@@ -1068,8 +1160,8 @@ def savefig(fname=None, folder=savedir, Verbose=True, imin=None, **kwargs):
 
 ## Colors ##
 
-def colormaps():
-    """Displays all available matplotlib colormaps."""
+def colormaps(**kwargs):
+    """Displays all available matplotlib colormaps. **kwargs go to imshow."""
     cmaps = [('Perceptually Uniform Sequential', [
                 'viridis', 'plasma', 'inferno', 'magma', 'cividis']),
              ('Sequential', [
@@ -1108,7 +1200,7 @@ def colormaps():
         axes[0].set_title(cmap_category + ' colormaps', fontsize=14)
     
         for ax, name in zip(axes, cmap_list):
-            ax.imshow(gradient, aspect='auto', cmap=plt.get_cmap(name))
+            ax.imshow(gradient, aspect='auto', cmap=plt.get_cmap(name), **kwargs)
             ax.text(-.01, .5, name, va='center', ha='right', fontsize=10,
                     transform=ax.transAxes)
     
