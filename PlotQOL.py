@@ -30,7 +30,8 @@ Useful and user-friendly/convenient codes for making matplotlib plots.
 #TODO: properly implement do_ylim for log-scale plots.
 #TODO: fix _convert_to_next_filename() behavior when files with similar names are in folder.
 #   e.g. "test hi" and "test hi there" -> error for function when it hits "test hi".
-
+#TODO: increase dpi and decrease figure size? investigate...
+#   see e.g.: https://stackoverflow.com/questions/47633546/relationship-between-dpi-and-figure-size
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -43,22 +44,42 @@ from matplotlib.colors import LinearSegmentedColormap #only use for discrete_cma
 from CodeQOL import strmatch #only used in pqol.dictplot
 from CodeQOL import strmatches #only used in pqol.dictplot
 
-XYLIM_MARGIN=0.05
-TEXTBOX_MARGIN=0.002
-DEFAULT_SAVE_STR="Untitled"
+XYLIM_MARGIN=0.05           #for do_xlim, do_ylim
+TEXTBOX_MARGIN=0.002        #for hline, vline
+DEFAULT_SAVE_STR="Untitled" #for savefig
+DEFAULT_GRIDSIZE=(4,3)      #(Nrows (y), Ncols (x)). for data_overlap
+
+
+## Current PlotQOL Directory: pqol.savedir ##
+
+if 'savedir_is_default' in locals().keys():
+    savedir_is_default = locals()['savedir_is_default']
+else:
+    savedir_is_default = True
+
+if savedir_is_default or 'savedir' not in locals().keys():
+    savedir = os.getcwd()+'/saved_plots/'
+"""
+savedir is default location for plot saves.
+Change using set_savedir(new_savedir).
+Access using import PlotQOL as pqol; pqol.savedir
+"""
+
 
 #### set better defaults ####
 
-def fixfonts(s=14, m=20, l=22):
+def fixfonts(s=14, m=18, l=22):
     """sets better default font sizes for plots"""
     plt.rc('axes', titlesize=l)    # fontsize of the axes title
     plt.rc('figure', titlesize=l)  # fontsize of the figure title
-    plt.rc('axes', labelsize=m)    # fontsize of the x and y labels
+    plt.rc('axes', labelsize=l)    # fontsize of the x and y labels
+    
     plt.rc('font', size=m)         # controls default text sizes
+    plt.rc('legend', fontsize=m)   # legend fontsize
     
     plt.rc('xtick', labelsize=s)   # fontsize of the tick labels
     plt.rc('ytick', labelsize=s)   # fontsize of the tick labels
-    plt.rc('legend', fontsize=s)   # legend fontsize
+    
 
 def fixfigsize(size=(8,8)):
     """sets better default figure size for plots"""
@@ -506,6 +527,8 @@ def _find_ylim(xlim=True, data=None, ax=None, margin=XYLIM_MARGIN):
     return _find_xylim(xlim=xlim, ylim=None, data=data, ax=ax, margin=margin)
     
  
+#### data overlap/density in plotspace ####
+    
 ## get data from plot ##
 
 def get_data(ax=None, combine=False):
@@ -567,7 +590,7 @@ def _get_scatterdata(ax=None):
 
 ## overlap with data in plot ##
 
-def data_overlap(ax=None, gridsize=(3,3)):
+def data_overlap(ax=None, gridsize=DEFAULT_GRIDSIZE):
     """Determines number of data points overlapping each box in a grid.
     
     Use ax, or plt.gca() if ax is not provided.
@@ -619,8 +642,42 @@ def _grid_ax_coords(gridsize, origin="upper"):
     return [np.arange(yl + 1)[::-1]/yl, np.arange(xl + 1)/xl]
 
 #### annotation ####
+
+def text(s, ax_xy=None, badness=0, ax=None, gridsize=DEFAULT_GRIDSIZE,
+         overlap=None, **kwargs):
+    """puts textbox with text s.
     
-def legend(badness=0, ax=None, gridsize=(3,3), overlap=None, **kwargs):
+    By default, puts where pqol thinks is best, based on data in plot.
+    
+    If ax_xy is passed, instead places text at ax coordinates ax_xy= (ax_x, ax_y).
+    e.g. ax_xy = (0.7, 0.2) places text 70% across from left, & 20% up from bottom.
+    If ax_xy is not passed, picks location based on data in plot.
+    increase badness value to use next-to-best locations.
+    **kwargs go to plt.text()
+    """
+    default_bbox = dict(facecolor='none')
+    default_ha   = 'center'
+    default_va   = 'center'
+    
+    if ax_xy is not None:
+        x, y = ax_xy
+    else:
+        axlocs = best_locs(ax=ax, gridsize=gridsize, overlap=overlap)
+        y, x   = axlocs['loc'][badness] #ax_y & ax_x of lower left corner of best box.
+        y += axlocs['h']/2.
+        x += axlocs['w']/2.
+    x = _xcoords_ax_to_data(x, ax=ax)
+    y = _ycoords_ax_to_data(y, ax=ax)
+    
+    bbox = kwargs.pop('bbox', default_bbox)
+    ha = kwargs.pop('verticalalignment', None)
+    ha = ha if ha is not None else kwargs.pop('ha', default_ha)
+    va = kwargs.pop('verticalalignment', None)
+    va = va if va is not None else kwargs.pop('va', default_va)
+    t = plt.text(x, y, s, bbox=bbox, ha=ha, va=va, **kwargs)
+    return t
+    
+def legend(badness=0, ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None, **kwargs):
     """puts a legend where pqol thinks is best, based on data in plot.
     
     increase badness value to use next-to-best locations.
@@ -633,29 +690,36 @@ def legend(badness=0, ax=None, gridsize=(3,3), overlap=None, **kwargs):
     l = plt.legend(loc='upper left', bbox_to_anchor=(x, y, axlocs["w"], axlocs["h"]), **kwargs)
         #uses 'best' algorithm of matplotlib within the box selected by pqol.
     return l
-    
-def best_locs(ax=None, gridsize=(5,5), overlap=None):
+
+
+
+def best_locs(ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None):
     """returns emptiest locations, in axes coordinates, based on overlap.
     
     return will be a dict with keys "loc", "w", "h".
-    r["loc"][i] will be the axis coords for the lower left corner of
+    r["loc"][i] will be the axis coords (y, x) for the lower left corner of
     the i'th emptiest gridbox. 
     (r["w"], r["h"]) will be the (width,height) in axes coords of a gridbox.
     """
     ii     = _best_locs_i(ax=ax, gridsize=gridsize, overlap=overlap)
+    print(ii)
     ys, xs = _grid_ax_coords(gridsize)
+    print(ys, xs)
     
     axlocs = [(ys[yi+1], xs[xi]) for yi,xi in np.transpose(ii)]
     return dict(loc=axlocs, w=xs[1]-xs[0], h=ys[0]-ys[1])
 
-def _best_locs_i(ax=None, gridsize=(5,5), overlap=None):
+def _best_locs_i(ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None):
     """returns empitest locations, in grid indices, based on overlap.
     
     return will be a list [yvals, xvals], with each (yvals[i], xvals[i])
     being the indices for the i'th emptiest gridbox.
     """
-    overlap = overlap if overlap is not None else \
-              data_overlap(ax=ax, gridsize=gridsize)
+    if overlap is None:
+        overlap = data_overlap(ax=ax, gridsize=gridsize)
+    else:
+        #overlap = overlap
+        gridsize = overlap.shape    
     return np.unravel_index(overlap.argsort(axis=None), gridsize)    
     
 def linecalc(x1x2,y1y2):
@@ -928,11 +992,6 @@ def _margin(margin, axis="x", ax=None):
 
 
 #### Save Plots ####
-    
-## Current Directory ##
-    
-savedir = os.getcwd()+'/saved_plots/' if 'savedir' not in locals().keys() else locals()['savedir']
-"""default location for plot saves. Change using set_savedir(new_savedir)"""
 
 ## Save plots ##
 
@@ -944,9 +1003,11 @@ def set_savedir(new_savedir):
     access via: import PlotQOL as pqol; pqol.savedir
     """
     global savedir
+    global savedir_is_default
+    savedir_is_default = False
     savedir = new_savedir
 
-def _convert_to_next_filename(name, folder=savedir):
+def _convert_to_next_filename(name, folder=savedir, imin=None):
     """returns string for next filename starting with name, in folder.
     
     Folder will be part of return; i.e. result contains the full path.
@@ -955,6 +1016,7 @@ def _convert_to_next_filename(name, folder=savedir):
     Convention is to use filenames in order: [name, 1- name, 2- name, ...].
     Will not re-use earlier names if files are deleted.
     e.g. if only [name, 3- name, 4- name] exist, will return 5- name, not 1- name.
+    if imin is not None, starts labeling at imin.
     """
     split = "- " #splits name and number.
     
@@ -966,14 +1028,15 @@ def _convert_to_next_filename(name, folder=savedir):
         os.mkdir(folder)
     l = [N.split('.')[0].replace(name, '').replace(split, '') \
             for N in os.listdir(folder) if N.split('.')[0].endswith(name)]
-    if not '' in l:
+    if not '' in l and imin is None:
         return folder + name #since default name does not already exist as file.
     else:
-        l.remove('')
+        if '' in l: l.remove('')
         x = np.max([int(N) for N in l]) if len(l)>0 else 0
-        return folder + str(x + 1) + split + name
+        imin = imin if imin is not None else 0
+        return folder + str(max(x + 1, imin)) + split + name
 
-def savefig(fname=None, folder=savedir, Verbose=True, **kwargs):
+def savefig(fname=None, folder=savedir, Verbose=True, imin=None, **kwargs):
     """Saves figure via plt.savefig()
     
     Default functionality is to save current active figure, to folder pqol.savedir.
@@ -995,7 +1058,7 @@ def savefig(fname=None, folder=savedir, Verbose=True, **kwargs):
     **kwargs are passed to plt.savefig
     """
     fname = fname if fname is not None else DEFAULT_SAVE_STR
-    saveto = _convert_to_next_filename(fname, folder=folder)
+    saveto = _convert_to_next_filename(fname, folder=folder, imin=imin)
     bbox_inches = kwargs.pop("bbox_inches", 'tight')
     plt.savefig(saveto, bbox_inches=bbox_inches, **kwargs)
     if Verbose: print("Active plot saved to",saveto)
