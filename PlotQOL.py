@@ -9,27 +9,16 @@ Useful and user-friendly/convenient codes for making matplotlib plots.
 """
 
 #TODO: implement title for colorbar()
-#TODO: implement scatter plot marker cycle
-#TODO: investigate using cycler to do cycles.
+#TODO: implement scatter plot marker cycle. use cycler to do cycles?
 #TODO: implement different left/right yscales to put two plots on same grid.
     #Can be accomplished by just doing:
     #plt.plot(<firstplot>); plt.twinx(); plt.plot(<secondplot>)
     #However there are QOL issues with labeling, colors, etc, that could be fixed.
-#TODO: implement easy annotation (textboxes etc.)
 #check out illustrator
-#A good example of textbox annotations can be found in answers here:
-#   https://stackoverflow.com/questions/17086847/box-around-text-in-matplotlib
-#TODO: "plot annotate edit mode":
-#   one function will print numbered boxes on plot, numbered asc.
-#       based on smallest data_overlap.
-#   another function will allow you to enter just a number and the text you want
-#       to create your annotation where that numbered box was.
 #TODO: determine size of a textbox or legend before it is plotted - use that to inform how you plot.
-#TODO: create concise summary of the best functions in PlotQOL. put on git or here.
-#   e.g. do_ylim, do_xlim, legend, savefig, colorbar.
+#   ^^^^^ this one is highest priority ^^^^^
+#TODO: option for text size as percentage of figure size.
 #TODO: properly implement do_ylim for log-scale plots.
-#TODO: fix _convert_to_next_filename() behavior when files with similar names are in folder.
-#   e.g. "test hi" and "test hi there" -> error for function when it hits "test hi".
 #TODO: increase dpi and decrease figure size? investigate...
 #   see e.g.: https://stackoverflow.com/questions/47633546/relationship-between-dpi-and-figure-size
 
@@ -44,7 +33,7 @@ from matplotlib.colors import LinearSegmentedColormap #only use for discrete_cma
 from CodeQOL import strmatch #only used in pqol.dictplot
 from CodeQOL import strmatches #only used in pqol.dictplot
 
-DEFAULT_FIGSIZE=(6,6)       #for fixfigsize
+DEFAULT_FIGSIZE=(8,8)       #for fixfigsize
 XYLIM_MARGIN=0.05           #for do_xlim, do_ylim
 TEXTBOX_MARGIN=0.002        #for hline, vline
 DEFAULT_SAVE_STR="Untitled" #for savefig
@@ -701,6 +690,9 @@ def legend(badness=0, ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None, **kwargs
     (e.g. badness=1 uses second-best location; badness=2 uses third-best.)
     gridsize allows for finer or coarser search.
     **kwargs go to plt.legend().
+    
+    for legend location based on axes coordinates, instead,
+    use plt.legend(loc=(x, y)) to place bottom left corner of legend at x,y.
     """
     axlocs = locs_best(ax=ax, gridsize=gridsize, overlap=overlap)
     y, x   = axlocs['loc'][badness] #ax_y & ax_x of lower left corner of best box.
