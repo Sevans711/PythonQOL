@@ -6,11 +6,8 @@ Written by Samuel Evans.
 See also the [PythonQOL Wiki](https://github.com/Sevans711/PythonQOL/wiki). (Click the link or the Wiki tab on github.)
 
 ## DISTRIBUTION:  
-Feel free to use/distribute/alter the code and any results from it as you see fit,
-as long as you do not claim explicity or implicitly that you are this code's creator.
-(There's probably some sort of github liscense which says that,
-but I am still new to github so please bear with me.
-If you know about github liscenses and are willing to help, I am happy to accept advice!)
+Roughly, feel free to use/distribute/alter the code and any results from it as you see fit.  
+Officially, see the [Liscense Page](https://github.com/Sevans711/PythonQOL/blob/master/LICENSE)
 
 ## CONTENTS:  
 - [PlotQOL](https://github.com/Sevans711/PythonQOL/wiki/PlotQOL): plotting (mainly matplotlib.pyplot)  
