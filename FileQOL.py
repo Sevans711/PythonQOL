@@ -13,6 +13,9 @@ Created on Wed Jan 22 11:16:36 2020
 #Investigate pickle for saving
 
 #TODO: implement a function that tells you all available files in default h5dir.
+#TODO: finish implementing fqol.update(file, x)
+#      to add information to a file. x should be a dict().
+
 
 import h5py
 import os
@@ -47,7 +50,7 @@ def write(x, file, folder=h5dir, d="data", Verbose=True, overwrite=False):
     
     f = h5py.File(fname,'a')
     if type(x)==dict:
-        writedict(x, f, d=d)
+        writedict(x, f, d=d, overwrite=overwrite)
     elif d in f:
         if overwrite:
             if Verbose: print("Overwriting",d)
@@ -60,16 +63,36 @@ def write(x, file, folder=h5dir, d="data", Verbose=True, overwrite=False):
         f[d] = x
     f.close()
     
-def writedict(x, f, d="data"):
+def writedict(x, f, d="data", Verbose=True, overwrite=False):
     """writes x to (the open h5py.File) f, saving under dataset d.
     x should be a dict of (possibly sub-dicts, eventually of) arrays.
     if x[key] is a dict, recurses, calling writedict again.
-    helper function to 'write'."""
+    helper function to 'write'.
+    """
     for key in x.keys():
+        dkey = d+"/"+key
         if type(x[key])==dict:
-            writedict(x[key], f, d=d+"/"+key)
+            writedict(x[key], f, d=dkey)
+        elif dkey in f:
+            if overwrite:
+                if Verbose: print("Overwriting",dkey)
+                del f[dkey]
+                f[dkey] = x[key]
+            else: 
+                if Verbose: print("failed to write to",dkey,"because it already exists")
         else:
-            f[d+"/"+key] = x[key]
+            f[dkey] = x[key]
+            
+def update(f, x, d="data", folder=h5dir, Verbose=True):
+    """updates data in f (str of h5file name) via dict.update().
+    x should be a dict.
+    only checks first layer of keys in f.
+    (e.g. if f=dict(q=dict(a=3, b=5), then
+    update(f, dict(q=dict(c=7))) would delete a=3 & b=5, in current implementation.
+    """
+    y = read(f, d=d, folder=folder, Verbose=(Verbose>1))
+    y.update(x)
+    write(y, f, d=d, folder=folder, Verbose=Verbose, overwrite=True)
     
 def read(file, d="data", folder=h5dir, Verbose=False):
     """Reads data from file.
