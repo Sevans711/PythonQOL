@@ -19,6 +19,5 @@ setup(
       long_description=long_description,
       long_description_content_type='text/markdown',
       url      = 'https://github.com/Sevans711/PythonQOL',
-      packages = find_packages(),
-      python_requires >= 3.0
+      packages = find_packages()
       )
