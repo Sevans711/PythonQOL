@@ -32,7 +32,7 @@ This has the benefit of being relatively simple, and also if you ever want to un
 Add the `PythonQOL` folder (if you're following these steps, it will be at the location `Dir/PythonQOL`) to your PYTHONPATH. _(The PATH tells python where it's allowed to search for File when you type "import File".)_  
 As an example of how to do this: I use Spyder, so in the top left of my screen when spyder is open, I can click `python > PYTHONPATH manager`, then `+Add Path`. For other python consoles you may need to determine separately how to edit your PATH variable.  
 
-Make sure to relaunch spyder or your other compiler application after you finish intalling the files.
+#### _Troubleshooting: try relaunching your python shell/compiler after you have done the installation steps above._
 
 ### To start using the files:
 Once you've completed choice 1 or choice 2 above, run this code to get started:
