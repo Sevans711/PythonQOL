@@ -5,14 +5,10 @@ Written by Samuel Evans.
 **This repository is intended to provide quality-of-life improvements when coding in python.**  
 See also the [PythonQOL Wiki](https://github.com/Sevans711/PythonQOL/wiki). (Click the link or the Wiki tab on github.)
 
-## DISTRIBUTION:  
-Roughly, feel free to use/distribute/alter the code and any results from it as you see fit.  
-Officially, see the [Liscense Page](https://github.com/Sevans711/PythonQOL/blob/master/LICENSE)
-
 ## CONTENTS:  
-- [PlotQOL](https://github.com/Sevans711/PythonQOL/wiki/PlotQOL): plotting (mainly matplotlib.pyplot)  
-- [FileQOL](https://github.com/Sevans711/PythonQOL/wiki/FileQOL): storage  (mainly h5py)  
-- [CodeQOL](https://github.com/Sevans711/PythonQOL/wiki/CodeQOL): other miscellaneous QOL code  
+- [PlotQOL: plotting (mainly matplotlib.pyplot)](https://github.com/Sevans711/PythonQOL/wiki/PlotQOL)  
+- [FileQOL: storage  (mainly h5py)](https://github.com/Sevans711/PythonQOL/wiki/FileQOL)  
+- [CodeQOL: other miscellaneous QOL code](https://github.com/Sevans711/PythonQOL/wiki/CodeQOL)  
 
 ## GETTING STARTED:  
 ### To copy this repository to your computer do (in terminal / command line):  
@@ -25,17 +21,18 @@ This command will create a folder Dir/PythonQOL and then put the repository cont
 One example is: `cd /Users/YourUserName/Desktop`)_  
 
 ### To "install" the files:
-#### Choice 1 - pip install .
-After running the above lines, do:
+#### Choice 1 - "pip install" method.
 ```
 cd PythonQOL
 pip install .
 ```
 This has the benefit of being relatively simple, and also if you ever want to uninstall you can just type `pip uninstall PythonQOL`.
 
-#### Choice 2 - adding files to the pythonpath
-Add the PythonQOL folder (which is currently at Dir/PythonQOL) to your PYTHONPATH. The PATH tells python where it's allowed to search for File when you type "import File".  
-As an example of how to do this: I use Spyder, so in the top left of my screen when spyder is open, I can click `python > PYTHONPATH manager`, then `+Add Path`, then select the folder with this repository. For other python consoles you may need to determine separately how to edit your PATH variable. Make sure to relaunch spyder or your other compiler application
+#### Choice 2 - "pythonpath" method.
+Add the `PythonQOL` folder (if you're following these steps, it will be at the location `Dir/PythonQOL`) to your PYTHONPATH. _(The PATH tells python where it's allowed to search for File when you type "import File".)_  
+As an example of how to do this: I use Spyder, so in the top left of my screen when spyder is open, I can click `python > PYTHONPATH manager`, then `+Add Path`. For other python consoles you may need to determine separately how to edit your PATH variable.  
+
+Make sure to relaunch spyder or your other compiler application after you finish intalling the files.
 
 ### To start using the files:
 Once you've completed choice 1 or choice 2 above, run this code to get started:
@@ -55,7 +52,10 @@ import CodeQOL as cqol
 You may need to install `h5py` to run `FileQOL`.  
 For that I direct you to http://docs.h5py.org/en/stable/build.html#  
 
-_(TODO: complete list of dependencies)_
+_(TODO: add dependencies appropriately to setup.py so they are installed automagically)_
 
+## DISTRIBUTION:  
+Roughly, feel free to use/distribute/alter the code and any results from it as you see fit.  
+Officially, see the [Liscense Page](https://github.com/Sevans711/PythonQOL/blob/master/LICENSE)
 
 
