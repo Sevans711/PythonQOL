@@ -23,6 +23,22 @@ Useful and user-friendly/convenient codes for making matplotlib plots.
 #   see e.g.: https://stackoverflow.com/questions/47633546/relationship-between-dpi-and-figure-size
 #TODO: add "spot" parameter to legend() & text(), & show in locs_visual().
 #   works like badness parameter (&overwrites), except locations are fixed.
+#TODO: implement max number of ticks for non-discrete colorbars.
+#TODO: dynamically guess best step size for discrete imshow
+
+
+""" example to add to PlotQOL wiki page:
+
+image_data = np.array([[-8,-4],[0,4],[8,12]])
+plt.imshow(image_data, cmap='plasma')
+plt.colorbar()
+plt.show()
+
+image_data = np.array([[-8,-4],[0,4],[8,12]])/16
+pqol.discrete_imshow(image_data, step=1/4, base_cmap='plasma',
+                     do_colorbar=True, cgrid_params=dict(color='white', lw=5))
+plt.show()
+"""
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -292,7 +308,8 @@ def dictplot(x, y=None, yfunc=lambda y:y, xfunc=lambda x:x,
 #### colorbars and colors ####
 
 def colorbar(im=None, ax=None, loc="right", size="5%", pad=0.05, label=None,
-             clim=(None, None), discrete=False, **kwargs):
+             clim=(None, None), discrete=False, Nticks_max=10, step=1,
+             grid=True, grid_params=dict(grid=True), **kwargs):
     """draws vertical colorbar with decent size and positioning to the right of data.
     
     Parameters
@@ -311,22 +328,41 @@ def colorbar(im=None, ax=None, loc="right", size="5%", pad=0.05, label=None,
     label : None, or string. Default: None
         if passed, will use defaults for pqol.clabel() to label colorbar.
     clim : (vmin, vmax). Default: (None, None)
-        limits for colorbar
-    discrete : bool. Default: False
+        limits for colorbar.
+    discrete : bool or positive number. Default: False
         whether to display colorbar as if cmap for im is discrete.
         Expands colorbar vmin&vmax to attempt to align ticks on centers of colors.
+    Nticks_max : positive integer. Default: 10
+        max number of ticks for colorbar.
+        currently only implemented for discrete colorbars.
+    step : step per color
+    grid : if not True, overwrites grid in grid_params.
+    grid_params: dict().
+        grid : None -> no grid, True -> grid based on cmap.N (useful for discrete plots)
+            or number -> number of grid boxes to draw in colorbar.
+        unpacked in pqol.grid_sized() function as grid_sized(**grid_params())
     **kwargs go to plt.colorbar()
     """
     ax = ax if ax is not None else plt.gca()
     im = im if im is not None else plt.gci()
-
+    
+    ticks = kwargs.pop('ticks', None)
+    if (discrete) and (ticks is None):
+        ticks = _discrete_im_ticks(Nticks_max, im=im, lim=clim, step=step)
+        
     # create an axes on the right side of ax. The width of cax will be 5%
     # of ax and the padding between cax and ax will be fixed at 0.05 inch.
     divider = make_axes_locatable(ax)
     cax = divider.append_axes(loc, size=size, pad=pad)
-    cbar = plt.colorbar(im, cax=cax, **kwargs)
+    
+    cbar = plt.colorbar(im, cax=cax, ticks=ticks, **kwargs)
     plt.clim(clim)
-    if discrete: plt.clim(discrete_clim(im))
+    if discrete:
+        plt.clim(_discrete_clim(im))
+        if grid is True: grid = grid_params.pop('grid', True)
+        if grid is not None and grid is not False:
+            grid = im.cmap.N if grid is True else grid
+            grid_sized((grid, 1), **grid_params)
     if label is not None: clabel(label)
     return cbar
 
@@ -355,30 +391,71 @@ def discrete_cmap(N, base_cmap=None):
     cmap_name = base.name + str(N)
     return LinearSegmentedColormap.from_list(cmap_name, color_list, N)
 
-def discrete_clim(im=None):
+def _discrete_clim(im=None, **kwargs):
     """Determine best clim for aligning tick values on colorbar for discrete im.
     
-    if im is None, uses current im (plt.gci()).
+    **kwargs go to _discrete_im_info()
     """
-    im = im if im is not None else plt.gci()
-    vm, vx = im.norm.vmin, im.norm.vmax
-    margin = (vx - vm)/((im.cmap.N - 1))
-    return (vm - margin/2, vx + margin/2)
+    return _discrete_im_info(im=im, **kwargs)['clim']
+
+def _discrete_im_info(im=None, lim=(None,None), N=None, step=1):
+    """Info about image for discrete colormap.
     
-def discrete_imshow(data, step=1, base_cmap=None, **kwargs):
+    Returns a dict containing:
+        N  = number of colors in map (==cmap.N - 1)
+        vm = minimum value represented in plot (smallest possible tick label)
+        vx = maximum value represented in plot (largest  possible tick label)
+        clim = limits for colorbar for proper tick aligments
+        step = step per color
+    
+    lim overwrites vm and vx, if lim is not None.
+    N  overwrites cmap.N -1, if N is not None.
+    im is used in place of plt.gci(), if im is not None.
+    """
+    if lim is None or N is None:
+        im = im if im is not None else plt.gci()
+        N  = N  if N  is not None else im.cmap.N - 1
+    vm = lim[0] if lim[0] is not None else im.norm.vmin
+    vx = lim[1] if lim[1] is not None else im.norm.vmax
+    margin = (vx - vm)/N
+    clim = (vm - margin/2, vx + margin/2)
+    return dict(N=N, vm=vm, vx=vx, clim=clim, step=step)
+
+def _discrete_im_ticks(Nticks_max=10, info=None, **kwargs):
+    """Ticks to use for discrete imshow.
+    
+    Nticks_max limits max number of ticks; will not use more than this.
+    info is _discrete_im_info(), or None to get info for current image.
+    **kwargs go to _discrete_im_info()
+    """
+    info = info if info is not None else _discrete_im_info(**kwargs)
+    N, vm, vx, step = info['N'], info['vm'], info['vx'], info['step']
+    cstep = step * (N // Nticks_max + 1)
+    return np.arange(vm, vx+cstep, cstep) 
+    
+    
+def discrete_imshow(data, step=1, base_cmap=None, do_colorbar=False,
+                    colorbar_params=dict(), cgrid_params=dict(), **kwargs):
     """imshow of data with discrete colormap generated automatically.
     
     To add a well-formatted discrete colorbar, use pqol.colorbar(discrete=True)
     
     step is step between discrete values; it is 1 by default.
     base_cmap is used by discrete_cmap; see documentation there for allowed values.
+    if make_colorbar is True, makes a colorbar.
+    colorbar_params is unpacked in colorbar. (as colorbar(**colorbar_params))
+    cgrid_params is passed to colorbar as colorbar(grid_params=cgrid_params).
     **kwargs go to imshow.
     
     returns image (=plt.imshow(...))
     """
     N = data.max() - data.min()
     cmap = discrete_cmap(N//step + 1, base_cmap=base_cmap) #integer division
-    return plt.imshow(data, cmap=cmap, **kwargs)
+    im = plt.imshow(data, cmap=cmap, **kwargs)
+    if do_colorbar:
+        colorbar(discrete=True, step=step,
+                 grid_params=cgrid_params, **colorbar_params)
+    return im
 
 def Nth_color(N, cmap=None, n_discrete=None):
     """returns the Nth color in the default color cycle, or cmap if passed.
