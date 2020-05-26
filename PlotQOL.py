@@ -21,6 +21,8 @@ Useful and user-friendly/convenient codes for making matplotlib plots.
 #TODO: properly implement do_ylim for log-scale plots.
 #TODO: increase dpi and decrease figure size? investigate...
 #   see e.g.: https://stackoverflow.com/questions/47633546/relationship-between-dpi-and-figure-size
+#TODO: add "spot" parameter to legend() & text(), & show in locs_visual().
+#   works like badness parameter (&overwrites), except locations are fixed.
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -683,12 +685,14 @@ def text(s, ax_xy=None, badness=0, ax=None, gridsize=DEFAULT_GRIDSIZE,
     t = plt.text(x, y, s, bbox=bbox, ha=ha, va=va, **kwargs)
     return t
      
-def legend(badness=0, ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None, **kwargs):
+def legend(badness=0, ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None,
+           loc='center', **kwargs):
     """puts a legend where pqol thinks is best, based on data in plot.
     
     increase badness value to use next-to-best locations.
     (e.g. badness=1 uses second-best location; badness=2 uses third-best.)
     gridsize allows for finer or coarser search.
+    loc is location INSIDE best grid box.
     **kwargs go to plt.legend().
     
     for legend location based on axes coordinates, instead,
@@ -696,7 +700,7 @@ def legend(badness=0, ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None, **kwargs
     """
     axlocs = locs_best(ax=ax, gridsize=gridsize, overlap=overlap)
     y, x   = axlocs['loc'][badness] #ax_y & ax_x of lower left corner of best box.
-    l = plt.legend(loc='upper left', bbox_to_anchor=(x, y, axlocs["w"], axlocs["h"]), **kwargs)
+    l = plt.legend(loc=loc, bbox_to_anchor=(x, y, axlocs["w"], axlocs["h"]), **kwargs)
         #uses 'best' algorithm of matplotlib within the box selected by pqol.
     return l
 
