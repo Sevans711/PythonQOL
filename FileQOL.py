@@ -15,6 +15,7 @@ Created on Wed Jan 22 11:16:36 2020
 #TODO: implement a function that tells you all available files in default h5dir.
 #TODO: finish implementing fqol.update(file, x)
 #      to add information to a file. x should be a dict().
+#TODO: add multilayer-dict support to writedict() & update().
 
 
 import h5py
@@ -50,7 +51,7 @@ def write(x, file, folder=h5dir, d="data", Verbose=True, overwrite=False):
     
     f = h5py.File(fname,'a')
     if type(x)==dict:
-        writedict(x, f, d=d, overwrite=overwrite)
+        writedict(x, f, d=d, Verbose=Verbose, overwrite=overwrite)
     elif d in f:
         if overwrite:
             if Verbose: print("Overwriting",d)
@@ -70,12 +71,12 @@ def writedict(x, f, d="data", Verbose=True, overwrite=False):
     helper function to 'write'.
     """
     for key in x.keys():
-        dkey = d+"/"+key
+        dkey = d+"/"+str(key)
         if type(x[key])==dict:
             writedict(x[key], f, d=dkey)
         elif dkey in f:
             if overwrite:
-                if Verbose: print("Overwriting",dkey)
+                if Verbose>1: print("Overwriting",dkey)
                 del f[dkey]
                 f[dkey] = x[key]
             else: 
@@ -83,7 +84,7 @@ def writedict(x, f, d="data", Verbose=True, overwrite=False):
         else:
             f[dkey] = x[key]
             
-def update(f, x, d="data", folder=h5dir, Verbose=True):
+def update(f, x, d="data", folder=h5dir, Verbose=False):
     """updates data in f (str of h5file name) via dict.update().
     x should be a dict.
     only checks first layer of keys in f.
@@ -93,6 +94,7 @@ def update(f, x, d="data", folder=h5dir, Verbose=True):
     y = read(f, d=d, folder=folder, Verbose=(Verbose>1))
     y.update(x)
     write(y, f, d=d, folder=folder, Verbose=Verbose, overwrite=True)
+    return y
     
 def read(file, d="data", folder=h5dir, Verbose=False):
     """Reads data from file.
@@ -120,10 +122,11 @@ def readdict(f, d="data"):
     helper function to 'read'."""
     x = dict()
     for key in f[d].keys(): 
-        if isinstance(f[d+"/"+key], h5py.Group):
-            readdict(f, d+"/"+key)
+        dkey = d+"/"+str(key)
+        if isinstance(f[dkey], h5py.Group):
+            readdict(f, dkey)
         else:
-            x[key]=f[d+"/"+key][()] #[()] reads & saves info.
+            x[key]=f[dkey][()] #[()] reads & saves info.
     if not "filename" in x.keys():
         x["filename"]=f.filename
     return x
