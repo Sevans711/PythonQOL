@@ -21,13 +21,24 @@ cd Dir
 git clone https://github.com/Sevans711/PythonQOL/ 
 ```
 _(Replace `Dir` with the directory you want this folder to go in.  
+This command will create a folder Dir/PythonQOL and then put the repository contents in that folder.  
 One example is: `cd /Users/YourUserName/Desktop`)_  
-And that's it!  
-### To start using the files:
-1. I recommend adding the folder containing them to your python PATH. The PATH tells python where it's allowed to search for File when you type "import File".  
-As an example of how to do this: I use Spyder, so in the top left of my screen when spyder is open, I can click `python > PYTHONPATH manager`, then `+Add Path`, then select the folder with this repository. For other python consoles you may need to determine separately how to edit your PATH variable.  _(TODO: provide more detailed support for this step)_
 
-2. Once you've added the folder with this repository to your PATH, you can do something like:  
+### To "install" the files:
+#### Choice 1 - pip install .
+After running the above lines, do:
+```
+cd PythonQOL
+pip install .
+```
+This has the benefit of being relatively simple, and also if you ever want to uninstall you can just type `pip uninstall PythonQOL`.
+
+#### Choice 2 - adding files to the pythonpath
+Add the PythonQOL folder (which is currently at Dir/PythonQOL) to your PYTHONPATH. The PATH tells python where it's allowed to search for File when you type "import File".  
+As an example of how to do this: I use Spyder, so in the top left of my screen when spyder is open, I can click `python > PYTHONPATH manager`, then `+Add Path`, then select the folder with this repository. For other python consoles you may need to determine separately how to edit your PATH variable. Make sure to relaunch spyder or your other compiler application
+
+### To start using the files:
+Once you've completed choice 1 or choice 2 above, run this code to get started:
 ```python
 import FileQOL as fqol
 import PlotQOL as pqol
