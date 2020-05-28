@@ -8,7 +8,12 @@ Created on Tue Jan 14 19:52:21 2020
 Useful and user-friendly/convenient codes for making matplotlib plots.
 """
 
-#TODO: set save dir again if directory is changed...
+#TODO: Config file for defaults...
+#TODO: read default values in functions instead of at function definition.
+    #this allows changing default values to impact function behavior
+    #without requiring the module to be reloaded.
+    #(also if function code wasn't changed then import QOL.plots will not be
+    # sufficient to update default; requires restarting python session.)
 #TODO: implement title for colorbar()
 #TODO: implement scatter plot marker cycle. use cycler to do cycles?
 #TODO: implement different left/right yscales to put two plots on same grid.
@@ -28,7 +33,7 @@ Useful and user-friendly/convenient codes for making matplotlib plots.
 #TODO: dynamically guess best step size for discrete imshow
 
 
-""" example to add to PlotQOL wiki page:
+""" example to add to QOL.plots wiki page:
 
 image_data = np.array([[-8,-4],[0,4],[8,12]])
 plt.imshow(image_data, cmap='plasma')
@@ -85,7 +90,7 @@ def set_plot_defaults():
     fixfigsize()
     fixfonts()
     
-set_plot_defaults() #actually sets the defaults upon loading/importing PlotQOL.py
+set_plot_defaults() #actually sets the defaults upon loading/importing QOL/plots.py
 
 
 #### slice string interpreter ####
@@ -221,7 +226,7 @@ def dictplot(x, y=None, yfunc=lambda y:y, xfunc=lambda x:x,
     
     Examples
     --------
-    #import PlotQOL as pqol; then try the following:
+    #import QOL.plots as pqol; then try the following:
     x  = np.array([ 2, 4, 6, 8,10,12,14,16, 18])
     y1 = np.array([-7,-3,-1, 0, 0,-1,-3,-7,-16])
     y2 = np.array([ 7, 3, 1, 0, 0, 1, 3, 7, 16])
@@ -1170,7 +1175,7 @@ def set_savedir(new_savedir=None, DEFAULT=DEFAULT_SAVEDIR):
     
     savedir is the default location for saved plots.
     it defaults to os.getcwd()+'/saved_plots/'.
-    access via: import PlotQOL as pqol; pqol.savedir
+    access via: import QOL.plots as pqol; pqol.savedir
     """
     global savedir
     global savedir_is_default
@@ -1191,8 +1196,10 @@ if savedir_is_default or 'savedir' not in locals().keys():
     set_savedir()
     #back to function definitions#
 
-def _convert_to_next_filename(name, folder=savedir, imin=None):
+def _convert_to_next_filename(name, folder=None, imin=None):
     """returns string for next filename starting with name, in folder.
+    
+    if folder is None, uses folder=savedir.
     
     Folder will be part of return; i.e. result contains the full path.
     If name starts with '/', ignores the 'folder' kwarg.
@@ -1203,6 +1210,7 @@ def _convert_to_next_filename(name, folder=savedir, imin=None):
     if imin is not None, starts labeling at imin.
     """
     split = "- " #splits name and number.
+    folder = folder if folder is not None else savedir
     
     if name.startswith('/'):
         i = name.rfind('/')
@@ -1220,8 +1228,10 @@ def _convert_to_next_filename(name, folder=savedir, imin=None):
         imin = imin if imin is not None else 0
         return folder + str(max(x + 1, imin)) + split + name
 
-def savefig(fname=None, folder=savedir, Verbose=True, imin=None, **kwargs):
+def savefig(fname=None, folder=None, Verbose=True, imin=None, **kwargs):
     """Saves figure via plt.savefig()
+    
+    if folder is None, uses folder=savedir.
     
     Default functionality is to save current active figure, to folder pqol.savedir.
     The filename defaults to "Untitled X" where X starts blank but counts up,
