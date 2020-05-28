@@ -49,8 +49,8 @@ from scipy.stats import linregress
 import os #only used for saving figures.
 from matplotlib.colors import LinearSegmentedColormap #only use for discrete_cmap
 
-from CodeQOL import strmatch #only used in pqol.dictplot
-from CodeQOL import strmatches #only used in pqol.dictplot
+from QOL.codes import strmatch #only used in pqol.dictplot
+from QOL.codes import strmatches #only used in pqol.dictplot
 
 DEFAULT_FIGSIZE=(8,8)       #for fixfigsize
 XYLIM_MARGIN=0.05           #for do_xlim, do_ylim
