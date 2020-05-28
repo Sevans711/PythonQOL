@@ -6,9 +6,9 @@ Written by Samuel Evans.
 See also the [PythonQOL Wiki](https://github.com/Sevans711/PythonQOL/wiki). (Click the link or the Wiki tab on github.)
 
 ## CONTENTS:  
-- [PlotQOL: plotting (mainly matplotlib.pyplot)](https://github.com/Sevans711/PythonQOL/wiki/PlotQOL)  
-- [FileQOL: storage  (mainly h5py)](https://github.com/Sevans711/PythonQOL/wiki/FileQOL)  
-- [CodeQOL: other miscellaneous QOL code](https://github.com/Sevans711/PythonQOL/wiki/CodeQOL)  
+- [QOL.plots: plotting (mainly matplotlib.pyplot)](https://github.com/Sevans711/PythonQOL/wiki/QOL.plots)  
+- [QOL.files: storage  (mainly h5py)](https://github.com/Sevans711/PythonQOL/wiki/QOL.files)  
+- [QOL.codes: other miscellaneous QOL code](https://github.com/Sevans711/PythonQOL/wiki/QOL.codes)  
 
 ## GETTING STARTED:  
 ### To copy this repository to your computer do (in terminal / command line):  
@@ -37,9 +37,9 @@ As an example of how to do this: I use Spyder, so in the top left of my screen w
 ### To start using the files:
 Once you've completed choice 1 or choice 2 above, run this code to get started:
 ```python
-import FileQOL as fqol
-import PlotQOL as pqol
-import CodeQOL as cqol
+import QOL.files as fqol
+import QOL.plots as pqol
+import QOL.codes as cqol
 ```
 
 ### To learn what's inside the files, here are some options:
