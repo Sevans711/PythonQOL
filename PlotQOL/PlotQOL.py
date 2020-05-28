@@ -8,6 +8,7 @@ Created on Tue Jan 14 19:52:21 2020
 Useful and user-friendly/convenient codes for making matplotlib plots.
 """
 
+#TODO: set save dir again if directory is changed...
 #TODO: implement title for colorbar()
 #TODO: implement scatter plot marker cycle. use cycler to do cycles?
 #TODO: implement different left/right yscales to put two plots on same grid.
@@ -56,22 +57,8 @@ XYLIM_MARGIN=0.05           #for do_xlim, do_ylim
 TEXTBOX_MARGIN=0.002        #for hline, vline
 DEFAULT_SAVE_STR="Untitled" #for savefig
 DEFAULT_GRIDSIZE=(4,3)      #(Nrows (y), Ncols (x)). for data_overlap
-
-
-## Current PlotQOL Directory: pqol.savedir ##
-
-if 'savedir_is_default' in locals().keys():
-    savedir_is_default = locals()['savedir_is_default']
-else:
-    savedir_is_default = True
-
-if savedir_is_default or 'savedir' not in locals().keys():
-    savedir = os.getcwd()+'/saved_plots/'
-"""
-savedir is default location for plot saves.
-Change using set_savedir(new_savedir).
-Access using import PlotQOL as pqol; pqol.savedir
-"""
+DEFAULT_SAVEDIR='/saved_plots/' #savefig saves to: os.getcwd()+DEFAULT_SAVEDIR
+    #full directory name stored inpqol.savedir. Edit via pqol.set_savedir()
 
 
 #### set better defaults ####
@@ -365,7 +352,7 @@ def colorbar(im=None, ax=None, loc="right", size="5%", pad=0.05, label=None,
             grid_sized((grid, 1), **grid_params)
     if label is not None: clabel(label)
     return cbar
-
+ 
 def clabel(label, ax=None, rotation= -90, va='baseline', **kwargs):
     """labels active Axes as if it was a vertical colorbar to the right of data."""
     ax = ax if ax is not None else plt.gca()
@@ -438,11 +425,11 @@ def discrete_imshow(data, step=1, base_cmap=None, do_colorbar=False,
                     colorbar_params=dict(), cgrid_params=dict(), **kwargs):
     """imshow of data with discrete colormap generated automatically.
     
-    To add a well-formatted discrete colorbar, use pqol.colorbar(discrete=True)
+    To add a well-formatted discrete colorbar, use do_colorbar=True
     
     step is step between discrete values; it is 1 by default.
     base_cmap is used by discrete_cmap; see documentation there for allowed values.
-    if make_colorbar is True, makes a colorbar.
+    if do_colorbar is True, adds a colorbar.
     colorbar_params is unpacked in colorbar. (as colorbar(**colorbar_params))
     cgrid_params is passed to colorbar as colorbar(grid_params=cgrid_params).
     **kwargs go to imshow.
@@ -452,9 +439,11 @@ def discrete_imshow(data, step=1, base_cmap=None, do_colorbar=False,
     N = data.max() - data.min()
     cmap = discrete_cmap(N//step + 1, base_cmap=base_cmap) #integer division
     im = plt.imshow(data, cmap=cmap, **kwargs)
+    ax = plt.gca()
     if do_colorbar:
         colorbar(discrete=True, step=step,
                  grid_params=cgrid_params, **colorbar_params)
+    plt.sca(ax) #sets current axes to image instead of colorbar.
     return im
 
 def Nth_color(N, cmap=None, n_discrete=None):
@@ -1176,8 +1165,8 @@ def _margin(margin, axis="x", ax=None):
 
 ## Save plots ##
 
-def set_savedir(new_savedir):
-    """sets savedir to the new_savedir.
+def set_savedir(new_savedir=None, DEFAULT=DEFAULT_SAVEDIR):
+    """sets savedir to the new_savedir, or default if None is passed.
     
     savedir is the default location for saved plots.
     it defaults to os.getcwd()+'/saved_plots/'.
@@ -1185,8 +1174,22 @@ def set_savedir(new_savedir):
     """
     global savedir
     global savedir_is_default
-    savedir_is_default = False
-    savedir = new_savedir
+    if new_savedir is None:         #set to default.
+        savedir = os.getcwd()+'/saved_plots/'
+        savedir_is_default = True
+    else:                           #set to inputted savedir
+        savedir = new_savedir
+        savedir_is_default = False
+    return savedir
+
+    #SET DEFAULT savedir HERE#
+savedir_is_default = locals()['savedir_is_default'] \
+                     if 'savedir_is_default' in locals().keys() \
+                else True
+
+if savedir_is_default or 'savedir' not in locals().keys():
+    set_savedir()
+    #back to function definitions#
 
 def _convert_to_next_filename(name, folder=savedir, imin=None):
     """returns string for next filename starting with name, in folder.
