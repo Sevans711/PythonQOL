@@ -57,7 +57,7 @@ from matplotlib.colors import LinearSegmentedColormap #only use for discrete_cma
 from QOL.codes import strmatch #only used in pqol.dictplot
 from QOL.codes import strmatches #only used in pqol.dictplot
 
-DEFAULT_FIGSIZE=(8,8)       #for fixfigsize
+DEFAULT_FIGSIZE=(6,6)       #for fixfigsize
 XYLIM_MARGIN=0.05           #for do_xlim, do_ylim
 TEXTBOX_MARGIN=0.002        #for hline, vline
 DEFAULT_SAVE_STR="Untitled" #for savefig
@@ -127,7 +127,8 @@ def str2idx(string):
 
 #### plt.plot functionality ####
 
-def iplot(x, y=None, ss=None, i=None, plotter=plt.plot, iplotter=None, **kwargs):
+def iplot(x, y=None, ss=None, i=None, xfunc=lambda x: x, yfunc=lambda y: y,
+          plotter=plt.plot, iplotter=None, **kwargs):
     """plots y vs x, both indexed by index array i or slice_string ss.
     
     (Returns the output of the plotting function.)
@@ -143,6 +144,12 @@ def iplot(x, y=None, ss=None, i=None, plotter=plt.plot, iplotter=None, **kwargs)
     i : None, or list of integers or booleans, of length == len(x)
         Indexes both x and y. Plot will be of y[i] vs x[i].
         If i  is None (and ss is also None), plots y vs x.
+    xfunc : function. Default: x->x
+        applies xfunc to all xdata before plotting.
+        xfunc must accept x (array-like object) as input.
+    yfunc : function. Default: y->y
+        applies yfunc to all ydata before plotting.
+        yfunc must accept y (array-like object) as input.
     plotter : function
         Must accept x and y as args; label and **kwargs as kwargs.
     iplotter : None, or function
@@ -172,11 +179,11 @@ def iplot(x, y=None, ss=None, i=None, plotter=plt.plot, iplotter=None, **kwargs)
     plotter = plotter if iplotter is None else iplotter
     if ss is not None:
         s=str2idx(ss)
-        return plotter(x[s], y[s], **kwargs)
+        return plotter(xfunc(x[s]), yfunc(y[s]), **kwargs)
     elif i is not None:
-        return plotter(x[i], y[i], **kwargs)
+        return plotter(xfunc(x[i]), yfunc(y[i]), **kwargs)
     else:
-        return plotter(x, y, **kwargs)
+        return plotter(xfunc(x), yfunc(y), **kwargs)
     
 def dictplot(x, y=None, yfunc=lambda y:y, xfunc=lambda x:x,
              keys=None, hide_keys=None, prefix='', suffix='', 
@@ -300,7 +307,7 @@ def dictplot(x, y=None, yfunc=lambda y:y, xfunc=lambda x:x,
 #### colorbars and colors ####
 
 def colorbar(im=None, ax=None, loc="right", size="5%", pad=0.05, label=None,
-             clim=(None, None), discrete=False, Nticks_max=10, step=1,
+             sca=True, clim=(None, None), discrete=False, Nticks_max=10, step=1,
              grid=True, grid_params=dict(grid=True), **kwargs):
     """draws vertical colorbar with decent size and positioning to the right of data.
     
@@ -319,6 +326,11 @@ def colorbar(im=None, ax=None, loc="right", size="5%", pad=0.05, label=None,
         padding (in inches?) between plot and colorbar.
     label : None, or string. Default: None
         if passed, will use defaults for pqol.clabel() to label colorbar.
+    sca : bool. Default: True
+        whether to set current axes back to image after creating colorbar.
+        (plt commands affect current axes by default. After calling colorbar():
+        with sca= True, calling plt.title("X") puts X as title for image;
+        with sca=False, calling plt.title("X") puts X as title for colorbar.)
     clim : (vmin, vmax). Default: (None, None)
         limits for colorbar.
     discrete : bool or positive number. Default: False
@@ -356,6 +368,7 @@ def colorbar(im=None, ax=None, loc="right", size="5%", pad=0.05, label=None,
             grid = im.cmap.N if grid is True else grid
             grid_sized((grid, 1), **grid_params)
     if label is not None: clabel(label)
+    if sca: plt.sca(ax) #sets current axes back to image instead of colorbar.
     return cbar
  
 def clabel(label, ax=None, rotation= -90, va='baseline', **kwargs):
@@ -441,7 +454,7 @@ def discrete_imshow(data, step=1, base_cmap=None, do_colorbar=False,
     
     returns image (=plt.imshow(...))
     """
-    N = data.max() - data.min()
+    N = np.max(data) - np.min(data)
     cmap = discrete_cmap(N//step + 1, base_cmap=base_cmap) #integer division
     im = plt.imshow(data, cmap=cmap, **kwargs)
     ax = plt.gca()
@@ -814,8 +827,10 @@ def locs_visual(ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None,
                alpha  = 0.3,
                aspect = 'auto',
                **kwargs)
+    ax = plt.gca()
     grid_sized(gridsize, color='black', lw=1)
     colorbar(discrete=True)
+    plt.sca(ax) #sets current axes back to ax instead of colorbar.
     return axlocs
     
 
