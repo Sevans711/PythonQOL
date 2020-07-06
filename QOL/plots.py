@@ -8,6 +8,23 @@ Created on Tue Jan 14 19:52:21 2020
 Useful and user-friendly/convenient codes for making matplotlib plots.
 """
 
+#KNOWN ISSUES:
+'''
+KNOWN ISSUES:
+#bbox_corners for text is not actually correct (but it is close to correct).
+#for example, try the following with in-line plotting:
+plt.figure()
+plt.text(0.2, 0.6, 'hello there! how is it going?', fontsize=18)
+to = pqol.texts_overlap(gridsize=(10,10))
+pqol.imshow_overplot(to)
+bbc = pqol.bbox_corners(pqol.get_texts()[0])
+pqol.vline(bbc[0][0]) #draw vline at text bbox's left coord
+pqol.vline(bbc[1][0]) #draw vline at text bbox's right coord
+pqol.hline(bbc[0][1]) #draw hline at text bbox's bottom coord
+pqol.hline(bbc[1][1]) #draw hline at text bbox's top coord
+pqol.colorbar() #also try to remove this line and see how it changes
+'''
+
 #TODO: Config file for defaults...
 #TODO: read default values in functions instead of at function definition.
     #this allows changing default values to impact function behavior
@@ -34,12 +51,11 @@ Useful and user-friendly/convenient codes for making matplotlib plots.
 #TODO: implement x label text overlap checker.
 #   (prevent xticks from overlapping, e.g. when font is large.)
 #TODO: std on vars in dictplot.
-#TODO: check legend/text overlap.
-'''
-l = pqol.legend(badness=1)
-bb = l.get_window_extent(renderer=plt.gcf().canvas.get_renderer())
-bbdat = plt.gca().transAxes.inverted().transform(bb)
-'''
+#TODO: improve efficiency of test_overlap and text_overlap.
+#   instead of looping through the entire grid, only loop through those boxes
+#   which may be close to the textbox / legend / box in question.
+#TODO: improve pqol.text and pqol.legend documentation to show
+#   the more sophisticated overlap-checking that is now implemented.
 
 
 import numpy as np
@@ -58,7 +74,7 @@ DEFAULT_DPI=100             #for fixdpi
 XYLIM_MARGIN=0.05           #for do_xlim, do_ylim
 TEXTBOX_MARGIN=0.002        #for hline, vline
 DEFAULT_SAVE_STR="Untitled" #for savefig
-DEFAULT_GRIDSIZE=(4,3)      #(Nrows (y), Ncols (x)). for data_overlap
+DEFAULT_GRIDSIZE=(16,16)    #(Nrows (y), Ncols (x)). for data_overlap
 DEFAULT_SAVEDIR='/saved_plots/' #savefig saves to: os.getcwd()+DEFAULT_SAVEDIR
     #full directory name stored inpqol.savedir. Edit via pqol.set_savedir()
 
@@ -686,10 +702,69 @@ def _get_scatterdata(ax=None):
 
 ## overlap with data in plot ##
 
+def total_overlap(ax=None, gridsize=DEFAULT_GRIDSIZE, text_weight=1,
+                  kernel_mode=True, **kernel_params):
+    """determines the total overlap of plotted data & text.
+    
+    text_weight tells how to convert text overlap into an effective data overlap.
+    The formula is:
+        effective_text_overlap = text_weight * text_overlap * max(data_overlap)
+    """
+    
+    overlap = data_overlap(ax=ax, gridsize=gridsize)
+    
+    if kernel_mode: overlap = _apply_kernel(overlap, **kernel_params)
+    t_overlap = text_overlap(ax=ax, gridsize=gridsize)
+    effective_overlap = overlap + text_weight * t_overlap * np.max(overlap)
+
+    return effective_overlap
+
+def text_overlap(ax=None, gridsize=DEFAULT_GRIDSIZE):
+    """Determines fraction of each box in a grid which overlaps any text/legend.
+    
+    Uses ax, or plt.gca() if ax is not provided.
+    gridsize=[N_rows, N_cols] number of boxes in y & x directions, evenly spaced.
+    
+    Returns array of shape==gridsize,
+    with array[i][j] == fraction of box (i=row_num,j=col_num) which overlaps any text/legend.
+    """
+    ax = ax if ax is not None else plt.gca()
+    texts  = get_texts(ax)
+    legend = get_legend(ax)
+    
+    bboxes = [bbox_corners(text , output='axes') for text in texts]
+    if legend is not None:
+        bboxes += [bbox_corners(legend, output='axes')] #'+' means 'append'
+    
+    ys, xs = _grid_ax_coords(gridsize) #ys are in descending order
+    
+    r  = np.zeros(gridsize)
+    for i in range(gridsize[0]):
+        for j in range(gridsize[1]):
+            gridbox = [(xs[j], ys[i+1]), (xs[j+1], ys[i])]
+            for bbox in bboxes:
+                r[i,j]+=_boxes_overlap(bbox, gridbox)
+    return r * np.product(gridsize)
+        
+def _boxes_overlap(A, B):
+    """determines area of overlap between boxes a and b
+    
+    Each box should be entered as [(LLx, LLy), (URx, URy)],
+    where LL = lower left corner, and UR = upper right corner.
+    """
+    LLA, URA = A
+    LLB, URB = B
+    if LLA[0] > URB[0] or LLB[0] > URA[0] or \
+        LLA[1] > URB[1] or LLB[1] > URA[1]:
+            return 0.
+    else:
+        return ( max(LLA[0], LLB[0]) - min(URA[0], URB[0]) ) * \
+                ( max(LLA[1], LLB[1]) - min(URA[1], URB[1]) ) 
+
 def data_overlap(ax=None, gridsize=DEFAULT_GRIDSIZE):
     """Determines number of data points overlapping each box in a grid.
     
-    Use ax, or plt.gca() if ax is not provided.
+    Uses ax, or plt.gca() if ax is not provided.
     gridsize=[N_rows, N_cols] number of boxes in y & x directions, evenly spaced.
     
     Returns array of shape==gridsize,
@@ -732,10 +807,42 @@ def _grid_ax_coords(gridsize, origin="upper"):
     
     Returns [yvals, xvals] which represent intersections of gridlines;
     thus len(yi)=N_rows+1 and len(xi)=N_cols+1.
-    If origin="upper", the box numbering is assumed to begin
+    If origin="upper", the box numbering is assumed to begin at the top left.
     """
     yl, xl = gridsize
     return [np.arange(yl + 1)[::-1]/yl, np.arange(xl + 1)/xl]
+
+def test_overlap(box, overlap=None, gridsize=DEFAULT_GRIDSIZE, box_spec='axes',
+                 **t_o_kwargs):
+    """determines how much <box> will overlap with stuff on plot.
+    <box> is in axes coords by default. Other options: 'data'.
+    
+    <box> must be in the format [(LLx, LLy), (URx, URy)],
+    where LL is lower left corner, and UR is upper right corner.
+    
+    if overlap is None, calculates overlap using total_overlap function.
+    **t_o_kwargs go to total_overlap()
+    
+    returns a single number - the weighted sum of overlap values in the box.
+    if a gridbox partially overlaps <box>, the overlap in that gridbox will
+    be weighted by the fraction of gridbox in <box>.
+    """
+    if overlap is None:
+        overlap = total_overlap(gridsize=gridsize, **t_o_kwargs)
+    else:
+        gridsize=overlap.shape
+        
+    box = box if box_spec=='axes' else _xycoords_data_to_ax(box)
+        
+    ys, xs = _grid_ax_coords(gridsize) #ys are in descending order
+    r  = np.zeros(gridsize)
+    for i in range(gridsize[0]):
+        for j in range(gridsize[1]):
+            gridbox = [(xs[j], ys[i+1]), (xs[j+1], ys[i])]
+            r[i,j] += _boxes_overlap(box, gridbox) * overlap[i,j]
+    #_boxes_overlap gives an area. multiply by number of boxes to get fraction.
+    return np.sum(r * np.product(gridsize))
+    
 
 ## image blurring ##
 
@@ -797,7 +904,7 @@ def _apply_kernel(data, edge_method='drop', shape=(5,5), **kernel_kwargs):
             output[i, j] = np.sum(kernel * data[slice(*xii), slice(*yii)])
     return output
 
-def _make_kernel(shape=(5,5), f=None, sigma=0.1, A=None, **fkwargs):
+def _make_kernel(shape=(5,5), f=None, sigma=0.5, A=None, **fkwargs):
     '''makes a 2d kernel with shape shape according to function f.
     
     Evaluates f in the box [-1,1]x[-1,1]. 
@@ -831,8 +938,9 @@ def _make_kernel(shape=(5,5), f=None, sigma=0.1, A=None, **fkwargs):
 
 #### annotation ####
 
-def text(s, ax_xy=None, badness=0, ax=None, gridsize=DEFAULT_GRIDSIZE,
-         overlap=None, **kwargs):
+def text(s, ax_xy=None, iters=50, ax=None, gridsize=DEFAULT_GRIDSIZE,
+         overlap=None, overlap_params=dict(), 
+         allow_external=False, external_margin=-0.01, **kwargs):
     """puts textbox with text s.
     
     By default, puts where pqol thinks is best, based on data in plot.
@@ -843,51 +951,122 @@ def text(s, ax_xy=None, badness=0, ax=None, gridsize=DEFAULT_GRIDSIZE,
     increase badness value to use next-to-best locations.
     For coordinates in terms of data, use plt.text().
     **kwargs go to plt.text()
+    
+    Example
+    -------
+    #Try this! pqol will ensure the textboxes do not overlap, automagically!
+    plt.plot(-np.arange(10), label='line')
+    pqol.legend()
+    pqol.text('hello')
+    pqol.text('look, a wild textbox!')
+    pqol.text('this is a very very very very large one')
+    pqol.text('this is another very large box')
+    pqol.text('this box is less large')
+    pqol.text('doing a test')
+    pqol.text('one last test :)')
+    
+    #For fun, you can look at the overlap matrix that pqol used:
+    overlap = pqol.total_overlap()
+    pqol.imshow_overplot(overlap)
+    pqol.colorbar()
     """
     default_bbox = dict(facecolor='none')
     default_ha   = 'center'
     default_va   = 'center'
-    
-    if ax_xy is not None:
-        x, y = ax_xy
-    else:
-        axlocs = locs_best(ax=ax, gridsize=gridsize, overlap=overlap)
-        y, x   = axlocs['loc'][badness] #ax_y & ax_x of lower left corner of best box.
-        y += axlocs['h']/2.
-        x += axlocs['w']/2.
-    x = _xcoords_ax_to_data(x, ax=ax)
-    y = _ycoords_ax_to_data(y, ax=ax)
     
     bbox = kwargs.pop('bbox', default_bbox)
     ha = kwargs.pop('verticalalignment', None)
     ha = ha if ha is not None else kwargs.pop('ha', default_ha)
     va = kwargs.pop('verticalalignment', None)
     va = va if va is not None else kwargs.pop('va', default_va)
+    
+    if ax_xy is not None:
+        x, y = ax_xy
+        x = _xcoords_ax_to_data(x, ax=ax)
+        y = _ycoords_ax_to_data(y, ax=ax)
+    else:
+        if overlap is None:
+            overlap = total_overlap(ax, gridsize=gridsize, **overlap_params)
+    
+        axlocs = locs_best(ax=ax, gridsize=gridsize, overlap=overlap)
+        
+        smallest_ol = np.inf
+        smallest_ol_i = 0
+        if iters < 0: iters = int(np.min([-1 * iters, 1]) * np.product(gridsize))
+        i=-1
+        while i<iters-1 or (smallest_ol is np.inf and i<np.product(gridsize)):
+            i+=1
+            y, x = axlocs['loc'][i] #ax_y & ax_x of lower left corner of box
+            x = _xcoords_ax_to_data(x, ax=ax)
+            y = _ycoords_ax_to_data(y, ax=ax)
+            t = plt.text(x, y, s, bbox=bbox, ha=ha, va=va, **kwargs)
+            bbc = bbox_corners(t, output='axes')
+            t.remove() #prevents cluttering as we look for best possible location via trial & error.
+            if not allow_external:
+                outside = np.sum( (bbc > 1+external_margin) | (bbc < 0-external_margin) ) > 0
+                if outside:
+                    continue
+            ol = test_overlap(bbc, overlap=overlap, box_spec='axes')
+            if ol < smallest_ol:
+                smallest_ol_i = i
+                smallest_ol   = ol
+        y, x   = axlocs['loc'][smallest_ol_i] #ax_y & ax_x of lower left corner of BEST box.
+        x = _xcoords_ax_to_data(x, ax=ax)
+        y = _ycoords_ax_to_data(y, ax=ax)
     t = plt.text(x, y, s, bbox=bbox, ha=ha, va=va, **kwargs)
     return t
      
-def legend(badness=0, ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None,
-           loc='center', **kwargs):
+def legend(iters=20, ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None,
+           loc='center', overlap_params=dict(),
+           allow_external=False, external_margin=-0.03,
+           **kwargs):
     """puts a legend where pqol thinks is best, based on data in plot.
     
-    increase badness value to use next-to-best locations.
-    (e.g. badness=1 uses second-best location; badness=2 uses third-best.)
+    iters is number of gridpoints to test.
+        if negative, test iters * total_number_of_gridpoints points.
+    (Tests points in ascending order of overlap with other plot elements.)
     gridsize allows for finer or coarser search.
     loc is location INSIDE best grid box.
     **kwargs go to plt.legend().
+    overlap_params gets unpacked in total_overlap()
+    allow_external is whether to allow part of the legend to be outside the axes area
+    external_margin is what counts as external to the axes area.
+        (with a margin of 0.05, 'outside' is when axes coords are <-0.05 or >1.05.)
     
     for legend location based on axes coordinates, instead,
     use plt.legend(loc=(x, y)) to place bottom left corner of legend at x,y.
     """
+    if overlap is None:
+        overlap = total_overlap(ax, gridsize=gridsize, **overlap_params)
+    
     axlocs = locs_best(ax=ax, gridsize=gridsize, overlap=overlap)
-    y, x   = axlocs['loc'][badness] #ax_y & ax_x of lower left corner of best box.
-    l = plt.legend(loc=loc, bbox_to_anchor=(x, y, axlocs["w"], axlocs["h"]), **kwargs)
-        #uses 'best' algorithm of matplotlib within the box selected by pqol.
+    
+    smallest_ol = np.inf
+    smallest_ol_i = 0
+    if iters < 0: iters = int(np.min([-1 * iters, 1]) * np.product(gridsize))
+    i=-1
+    while i<iters-1 or (smallest_ol is np.inf and i<np.product(gridsize)):
+        i+=1
+        y, x   = axlocs['loc'][i] #ax_y & ax_x of lower left corner of box
+        l = plt.legend(bbox_to_anchor=(x, y, axlocs["w"], axlocs["h"]), loc=loc, **kwargs)
+        bbc = bbox_corners(l, output='axes')
+        if not allow_external:
+            outside = np.sum( (bbc > 1+external_margin) | (bbc < 0-external_margin) ) > 0
+            if outside:
+                continue
+        ol = test_overlap(bbc, overlap=overlap, box_spec='axes')
+        if ol < smallest_ol:
+            smallest_ol_i = i
+            smallest_ol   = ol
+    y, x   = axlocs['loc'][smallest_ol_i] #ax_y & ax_x of lower left corner of BEST box.
+    l = plt.legend(bbox_to_anchor=(x, y, axlocs["w"], axlocs["h"]), loc=loc, **kwargs)
     return l
 
 def locs_visual(ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None,
                 cmap='cividis', **kwargs):
     """visual representation of emptiest locations based on overlap with data.
+    
+    works in kernel_mode=False. Recommended to not use during kernel_mode=True.
     
     overplots a grid of numbered boxes, numbered according to their 'badness'.
     'badness' measures overlap with data, and the numbers on the plot from this
@@ -908,10 +1087,8 @@ def locs_visual(ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None,
     """
     if overlap is None: overlap = data_overlap(ax=ax, gridsize=gridsize)
     else: gridsize = overlap.shape
-    #return overlap
     ii = _locs_best_i(ax=ax, gridsize=gridsize, overlap=overlap)
-    #return ii
-    axlocs = locs_best(gridsize=gridsize, locs_best_i=ii)
+    axlocs = locs_best(gridsize=gridsize, locs_best_i=ii, kernel_mode=False)
     w2, h2 = axlocs['w']/2, axlocs['h']/2
     for i in range(len(axlocs['loc'])):
         y, x = axlocs['loc'][i]
@@ -937,9 +1114,8 @@ def imshow_overplot(data, **imshow_kwargs):
                aspect=imshow_kwargs.pop('aspect', 'auto'),
                **imshow_kwargs)
     
-
 def locs_best(ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None, locs_best_i=None,
-              kernel_mode=True, kernel_params=dict(), kgridsize=(16,16)):
+              text_weight=1, kernel_mode=True, **kernel_params):
     """returns emptiest locations, in axes coordinates, based on overlap with data.
     
     return will be a dict with keys "loc", "w", "h".
@@ -954,11 +1130,11 @@ def locs_best(ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None, locs_best_i=None
     kernel_params go to _apply_kernel.
     if kernel_mode is True, use gridsize kgridsize instead.
     """
+    
     if locs_best_i is not None: ii = locs_best_i
     else: ii = _locs_best_i(ax=ax, gridsize=gridsize, overlap=overlap,
                             kernel_mode=kernel_mode, kernel_params=kernel_params)
     
-    gridsize = gridsize if not kernel_mode else kgridsize
     gridsize = gridsize if overlap is None else overlap.shape
     ys, xs   = _grid_ax_coords(gridsize)
     
@@ -966,26 +1142,28 @@ def locs_best(ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None, locs_best_i=None
     return dict(loc=axlocs, w=xs[1]-xs[0], h=ys[0]-ys[1])
 
 def _locs_best_i(ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None,
-                 kernel_mode=True, kernel_params=dict(), kgridsize=(16,16)):
+                 text_weight=1, kernel_mode=True, **kernel_params):
     """returns empitest locations, in grid indices, based on overlap.
     
     return will be a list [yvals, xvals], with each (yvals[i], xvals[i])
     being the indices for the i'th emptiest gridbox.
     
+    if overlap is passed, ignores all other parameters.
+    
     if kernel_mode is True, blurs the overlap data (gaussian kernel by default).
     kernel_params go to _apply_kernel.
     if kernel_mode is True, use gridsize kgridsize instead.
-    """
-    if kernel_mode: gridsize=kgridsize
     
+    text_weight tells how to convert text overlap into an effective data overlap.
+    The formula is:
+        effective_text_overlap = text_weight * text_overlap * max(data_overlap)
+    """    
     if overlap is None:
-        overlap = data_overlap(ax=ax, gridsize=gridsize)
+        overlap = total_overlap(ax=ax, gridsize=gridsize, text_weight=text_weight,
+                                kernel_mode=kernel_mode, **kernel_params)
     else:
-        #overlap = overlap
         gridsize = overlap.shape
-    
-    if kernel_mode: overlap = _apply_kernel(overlap, **kernel_params)
-    
+
     return np.unravel_index(overlap.argsort(axis=None), gridsize)    
     
 def linecalc(x1x2,y1y2):
@@ -1285,6 +1463,16 @@ def bbox_corners(obj, output='axes'):
         else plt.gca().transData if output=='data' \
         else None
     return trans.inverted().transform(bb)
+
+def get_texts(ax=None):
+    """returns list of text objects placed on axes (current axes, by default)."""
+    ax = ax if ax is not None else plt.gca()
+    return ax.texts
+
+def get_legend(ax=None):
+    """returns legend object for axes (current axes, by default)."""
+    ax = ax if ax is not None else plt.gca()
+    return ax.legend_
     
 
 ## convert between data and axes coordinates ##
@@ -1308,22 +1496,34 @@ def _xy_ax_data_convert(coords, axis="x", convertto="data", ax=None, lim=None):
     else:
         return (coords - lim[0]) / np.array ( lim[1] - lim[0] ) #np.array for typecasting only.
         
-def _xcoords_ax_to_data(x_axcoords, ax=None, xlim=None):
+def _xcoords_ax_to_data(  x_axcoords  , ax=None, xlim=None):
     """Converts x-axis ax coords to x-axis data coords, via _xy_ax_data_convert."""
     return _xy_ax_data_convert(x_axcoords, axis="x", convertto="data", ax=ax, lim=xlim)
 
-def _ycoords_ax_to_data(y_axcoords, ax=None, ylim=None):
+def _ycoords_ax_to_data(  y_axcoords  , ax=None, ylim=None):
     """Converts y-axis ax coords to y-axis data coords, via _xy_ax_data_convert."""
     return _xy_ax_data_convert(y_axcoords, axis="y", convertto="data", ax=ax, lim=ylim)
 
-def _xcoords_data_to_ax(x_datacoords, ax=None, xlim=None):
+def _xycoords_ax_to_data( xy_axcoords , ax=None, xlim=None, ylim=None):
+    """Converts xy ax coords into xy data coords. e.g. [(x1,y1),(x2,y2),(x3,y3)]."""
+    x, y = np.transpose(xy_axcoords)
+    return np.transpose([_xcoords_ax_to_data(x, ax=ax, xlim=xlim), 
+                         _ycoords_ax_to_data(y, ax=ax, ylim=ylim)])
+
+def _xcoords_data_to_ax( x_datacoords , ax=None, xlim=None):
     """Converts x-axis data coords to x-axis ax coords, via _xy_ax_data_convert."""
     return _xy_ax_data_convert(x_datacoords, axis="x", convertto="ax", ax=ax, lim=xlim)
 
-def _ycoords_data_to_ax(y_datacoords, ax=None, ylim=None):
+def _ycoords_data_to_ax( y_datacoords , ax=None, ylim=None):
     """Converts y-axis data coords to y-axis ax coords, via _xy_ax_data_convert."""
     return _xy_ax_data_convert(y_datacoords, axis="y", convertto="ax", ax=ax, lim=ylim)
 
+def _xycoords_data_to_ax(xy_datacoords, ax=None, xlim=None, ylim=None):
+    """Converts xy data coords into xy ax coords. e.g. [(x1,y1),(x2,y2),(x3,y3)]."""
+    x, y = np.transpose(xy_datacoords)
+    return np.transpose([_xcoords_data_to_ax(x, ax=ax, xlim=xlim), 
+                         _ycoords_data_to_ax(y, ax=ax, ylim=ylim)])
+    
 def _margin(margin, axis="x", ax=None):
     """converts margin as fraction of full data range into data value.
     
