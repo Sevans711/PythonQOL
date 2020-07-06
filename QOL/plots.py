@@ -34,6 +34,13 @@ Useful and user-friendly/convenient codes for making matplotlib plots.
 #TODO: implement x label text overlap checker.
 #   (prevent xticks from overlapping, e.g. when font is large.)
 #TODO: std on vars in dictplot.
+#TODO: check legend/text overlap.
+'''
+l = pqol.legend(badness=1)
+bb = l.get_window_extent(renderer=plt.gcf().canvas.get_renderer())
+bbdat = plt.gca().transAxes.inverted().transform(bb)
+'''
+
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -924,6 +931,7 @@ def locs_visual(ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None,
     return axlocs
 
 def imshow_overplot(data, **imshow_kwargs):
+    '''imshows data over current axes.'''
     plt.imshow(data,
                extent=[*plt.gca().get_xlim(), *plt.gca().get_ylim()],
                aspect=imshow_kwargs.pop('aspect', 'auto'),
@@ -1260,6 +1268,24 @@ def vline(x, text=None, textparams=dict(), textloc=0.5, textanchor="start",
         txt=ax.text(x_d + marginal_text_shift, texty_d, text, rotation=rotation,
                     **textparams, bbox=bbox, va=va, ha=ha)
         return txt
+
+## Reference existing annotation ##
+
+def bbox_corners(obj, output='axes'):
+    """returns corners of text or legend object in output coordinates.
+    let C1 = lower left corner, C2 = upper right corner.
+    This function returns [[C1x, C1y], [C2x, C2y]].
+    
+    By default, uses 'axes' coordinates. Other options are: 'data'.
+    
+    other objects may be entered, provided they have a get_window_extext attribute.
+    """
+    bb = obj.get_window_extent(renderer=plt.gcf().canvas.get_renderer())
+    trans = plt.gca().transAxes if output=='axes' \
+        else plt.gca().transData if output=='data' \
+        else None
+    return trans.inverted().transform(bb)
+    
 
 ## convert between data and axes coordinates ##
 
