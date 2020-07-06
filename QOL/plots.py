@@ -31,20 +31,9 @@ Useful and user-friendly/convenient codes for making matplotlib plots.
 #   works like badness parameter (&overwrites), except locations are fixed.
 #TODO: implement max number of ticks for non-discrete colorbars.
 #TODO: dynamically guess best step size for discrete imshow
-
-
-""" example to add to QOL.plots wiki page:
-
-image_data = np.array([[-8,-4],[0,4],[8,12]])
-plt.imshow(image_data, cmap='plasma')
-plt.colorbar()
-plt.show()
-
-image_data = np.array([[-8,-4],[0,4],[8,12]])/16
-pqol.discrete_imshow(image_data, step=1/4, base_cmap='plasma',
-                     do_colorbar=True, cgrid_params=dict(color='white', lw=5))
-plt.show()
-"""
+#TODO: implement x label text overlap checker.
+#   (prevent xticks from overlapping, e.g. when font is large.)
+#TODO: std on vars in dictplot.
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -58,6 +47,7 @@ from QOL.codes import strmatch #only used in pqol.dictplot
 from QOL.codes import strmatches #only used in pqol.dictplot
 
 DEFAULT_FIGSIZE=(6,6)       #for fixfigsize
+DEFAULT_DPI=100             #for fixdpi
 XYLIM_MARGIN=0.05           #for do_xlim, do_ylim
 TEXTBOX_MARGIN=0.002        #for hline, vline
 DEFAULT_SAVE_STR="Untitled" #for savefig
@@ -85,10 +75,15 @@ def fixfigsize(size=DEFAULT_FIGSIZE):
     """sets better default figure size for plots"""
     plt.rcParams['figure.figsize'] = size
     
+def fixdpi(dpi=DEFAULT_DPI):
+    """sets better default figure dpi for plots"""
+    plt.rcParams['figure.dpi'] = dpi
+    
 def set_plot_defaults():
     """sets better defauls (fonts & figsize) for plots"""
     fixfigsize()
     fixfonts()
+    fixdpi()
     
 set_plot_defaults() #actually sets the defaults upon loading/importing QOL/plots.py
 
@@ -186,7 +181,7 @@ def iplot(x, y=None, ss=None, i=None, xfunc=lambda x: x, yfunc=lambda y: y,
         return plotter(xfunc(x), yfunc(y), **kwargs)
     
 def dictplot(x, y=None, yfunc=lambda y:y, xfunc=lambda x:x,
-             keys=None, hide_keys=None, prefix='', suffix='', 
+             keys=None, hide_keys=None, labels='^', prefix='', suffix='', 
              plotter=plt.plot, legend_badness=0, stylize_keys=None, **kwargs):
     """plots all data from dict on one plot, using keys as labels.
     
@@ -202,7 +197,7 @@ def dictplot(x, y=None, yfunc=lambda y:y, xfunc=lambda x:x,
     yfunc : function
         runs on all y-axis data before plotting. Default is y -> y
     xfunc : function
-        runs on all x-axis data before plotting. Default is x -> x                                       
+        runs on all x-axis data before plotting. Default is x -> x                             
     keys : None, or list of strings.
         Will only plot for key in keys and in dict.
         keys can use leading and/or trailing '*' as wildcard.
@@ -211,6 +206,8 @@ def dictplot(x, y=None, yfunc=lambda y:y, xfunc=lambda x:x,
         Will not show any key in hide_keys.
         keys can use leading and/or trailing '*' as wildcard.
         e.g. hide_keys=['*_1*', 'bz'] hides all keys containing '_1' or equal to 'bz'.
+    labels : string. Default: '^'
+        how to label keys. any '^' will be replaced with key name from dict.
     prefix : string
         prefix to all labels. (useful if plotting multiple dicts with same keys.)
     suffix : string
@@ -294,7 +291,8 @@ def dictplot(x, y=None, yfunc=lambda y:y, xfunc=lambda x:x,
                         kwargcopy.update(style_dict_i)      
         try:
             plotter(xfunc(xvals[key]), yfunc(d[key]),
-                    label=prefix+key+suffix, **kwargcopy)
+                    label=(prefix+labels+suffix).replace('^',key),
+                    **kwargcopy)
         except:
             failed_to_plot_keys += [key]
             
@@ -732,6 +730,98 @@ def _grid_ax_coords(gridsize, origin="upper"):
     yl, xl = gridsize
     return [np.arange(yl + 1)[::-1]/yl, np.arange(xl + 1)/xl]
 
+## image blurring ##
+
+def _apply_kernel(data, edge_method='drop', shape=(5,5), **kernel_kwargs):
+    '''applies kernel to data. kwargs go to _make_kernel.
+    
+    shape is shape of kernel.
+    
+    edge_methods
+    ------------
+    How to handle edges (when center pixel is close to edge of data).
+    Caution: will get confused if kernel shape is bigger than data shape.
+    'drop'    ->
+        ignore the non-existing pixels; re-weight kernel with only the existing ones.
+    '''
+    base_kernel = _make_kernel(shape=shape, **kernel_kwargs)
+    if base_kernel is None: return None
+    
+    output = np.zeros(data.shape)
+    xl, yl = data.shape
+    
+    margin = [(shape[0]-1)//2, (shape[1]-1)//2] #based on kernel shape
+    
+    def crosses_edge(ii, l):
+        '''whether ii is a slice which crosses an edge (at 0 or l).
+        returns 1 if close to 0, 2 if close to l, 0 if not within margin.'''
+        return (1) if ii[0] < 0 else (2) if ii[1] > l else (0)
+    
+    #LOOP THROUGH PIXELS
+    for i in range(xl):
+        ikernel = base_kernel
+        xii = np.array([i - margin[0], i + margin[0] + 1])
+        cex = crosses_edge(xii, xl)
+        if cex:
+            if edge_method=='drop':
+                if cex==1: #close to i==0;  xii[0]<0
+                    xadd = np.array([- xii[0],      0      ])
+                    xii  = xii + xadd
+                else:      #close to i==xl; xii[1]>xl
+                    xadd = np.array([    0   , xl - xii[1] ])
+                    xii  = xii + xadd
+                ikernel = ikernel[ slice(*(xadd + [0,shape[0]])), slice(None) ]
+                ikernel = ikernel / np.sum(ikernel)
+        for j in range(yl):
+            kernel = ikernel
+            yii = np.array([j - margin[1], j + margin[1] + 1])
+            cey = crosses_edge(yii, yl)
+            if cey:
+                if edge_method=='drop':
+                    if cey==1: #close to j==0;  yii[0]<0
+                        yadd = np.array([- yii[0],      0      ])
+                        yii  = yii + yadd
+                    else:      #close to j==yl; yii[1]>yl
+                        yadd = np.array([    0   , yl - yii[1] ])
+                        yii  = yii + yadd
+                    kernel = kernel[ slice(None), slice(*(yadd + [0,shape[1]])) ]
+                    kernel = kernel / np.sum(kernel)
+            #print(i, j, kernel, xii, yii, data[slice(*xii), slice(*yii)])
+            output[i, j] = np.sum(kernel * data[slice(*xii), slice(*yii)])
+    return output
+
+def _make_kernel(shape=(5,5), f=None, sigma=0.1, A=None, **fkwargs):
+    '''makes a 2d kernel with shape shape according to function f.
+    
+    Evaluates f in the box [-1,1]x[-1,1]. 
+    
+    if no f is entered, makes a gaussian kernel with sigx=sigy=sigma,
+    centered at middle of shape.
+    if sigx or sigy appear in fkwargs, they overwrite sigma for that direction.
+    
+    A multiplies the overall value of the kernel.
+    If A is None, instead ensure that the sum of the kernel pixels is 1.
+    Additional kwargs are passed to f.
+    '''
+    if shape[0]%2==0 or shape[1]%2==0:
+        print("ERROR: kernel shape must be odd for centering purposes.")
+        return None
+    x = np.linspace(-1,1,shape[0])
+    y = np.linspace(-1,1,shape[1])
+    x, y = np.meshgrid(x, y, sparse=True)
+    
+    if f is None:
+        sigx = fkwargs.pop('sigx', sigma)
+        sigy = fkwargs.pop('sigy', sigma)
+        def gaussian_func(x, y, sigx=sigx, sigy=sigy):
+            return np.exp(-(x**2/(2*sigx) + y**2/(2*sigy)))
+        f = gaussian_func
+    
+    kernel = f(x, y)
+    A = A if A is not None else 1/kernel.sum()
+    
+    return A * kernel
+
 #### annotation ####
 
 def text(s, ax_xy=None, badness=0, ax=None, gridsize=DEFAULT_GRIDSIZE,
@@ -832,9 +922,16 @@ def locs_visual(ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None,
     colorbar(discrete=True)
     plt.sca(ax) #sets current axes back to ax instead of colorbar.
     return axlocs
+
+def imshow_overplot(data, **imshow_kwargs):
+    plt.imshow(data,
+               extent=[*plt.gca().get_xlim(), *plt.gca().get_ylim()],
+               aspect=imshow_kwargs.pop('aspect', 'auto'),
+               **imshow_kwargs)
     
 
-def locs_best(ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None, locs_best_i=None):
+def locs_best(ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None, locs_best_i=None,
+              kernel_mode=True, kernel_params=dict(), kgridsize=(16,16)):
     """returns emptiest locations, in axes coordinates, based on overlap with data.
     
     return will be a dict with keys "loc", "w", "h".
@@ -844,27 +941,43 @@ def locs_best(ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None, locs_best_i=None
     
     if overlap is not None, ignores gridsize & ax.
     if locs_best_i is not None, this is used instead of doing _locs_best_i().
+    
+    if kernel_mode is True, blurs the overlap data (gaussian kernel by default).
+    kernel_params go to _apply_kernel.
+    if kernel_mode is True, use gridsize kgridsize instead.
     """
     if locs_best_i is not None: ii = locs_best_i
-    else: ii = _locs_best_i(ax=ax, gridsize=gridsize, overlap=overlap)
+    else: ii = _locs_best_i(ax=ax, gridsize=gridsize, overlap=overlap,
+                            kernel_mode=kernel_mode, kernel_params=kernel_params)
     
+    gridsize = gridsize if not kernel_mode else kgridsize
     gridsize = gridsize if overlap is None else overlap.shape
     ys, xs   = _grid_ax_coords(gridsize)
     
     axlocs = [(ys[yi+1], xs[xi]) for yi,xi in np.transpose(ii)]
     return dict(loc=axlocs, w=xs[1]-xs[0], h=ys[0]-ys[1])
 
-def _locs_best_i(ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None):
+def _locs_best_i(ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None,
+                 kernel_mode=True, kernel_params=dict(), kgridsize=(16,16)):
     """returns empitest locations, in grid indices, based on overlap.
     
     return will be a list [yvals, xvals], with each (yvals[i], xvals[i])
     being the indices for the i'th emptiest gridbox.
+    
+    if kernel_mode is True, blurs the overlap data (gaussian kernel by default).
+    kernel_params go to _apply_kernel.
+    if kernel_mode is True, use gridsize kgridsize instead.
     """
+    if kernel_mode: gridsize=kgridsize
+    
     if overlap is None:
         overlap = data_overlap(ax=ax, gridsize=gridsize)
     else:
         #overlap = overlap
-        gridsize = overlap.shape    
+        gridsize = overlap.shape
+    
+    if kernel_mode: overlap = _apply_kernel(overlap, **kernel_params)
+    
     return np.unravel_index(overlap.argsort(axis=None), gridsize)    
     
 def linecalc(x1x2,y1y2):
@@ -946,7 +1059,7 @@ def grid(x, y, ax=None, hparams=dict(), vparams=dict(), **kwargs):
 def hline(y, text=None, textparams=dict(), textloc=0.5, textanchor="start",
           textside="top", textmargin=TEXTBOX_MARGIN,
           xmin=0, xmax=1, yspec="data", xspec="axes", textspec="axes",
-          ax=None, **kwargs):
+          ax=None, forceplot=False, **kwargs):
     """Add a horizontal line across the plot, and label it if 'text' is entered.
     
     Use 'text' parameter to add text along line.
@@ -989,6 +1102,8 @@ def hline(y, text=None, textparams=dict(), textloc=0.5, textanchor="start",
         specification of coordinate system for 'xmin' and 'xmax'.
     textspec : data" or "axes". Default: "axes"
         specification of coordinate system for 'textloc'.
+    forceplot : bool. Default: False
+        if false: hline will not draw lines beyond 2x axis limits away from axis.
     additional **kwargs get passed to ax.axhline
         
     Examples
@@ -996,7 +1111,7 @@ def hline(y, text=None, textparams=dict(), textloc=0.5, textanchor="start",
     #Try this
     plt.plot(range(10))
     pqol.hline(3, "hello, world!", textloc=7, textanchor="start", textspec="data")
-    pqol.vline(7)
+    pqol.vline(7, color="black")
     """
     ax = ax if ax is not None else plt.gca()
     y_d    = y if yspec=="data" else \
@@ -1005,6 +1120,12 @@ def hline(y, text=None, textparams=dict(), textloc=0.5, textanchor="start",
     (xmin_a, xmax_a) = (xmin, xmax) if xspec=="axes" else \
                 (_xcoords_data_to_ax((xmin, xmax), ax=ax) \
                      if xspec=="data" else (None, None)) #xmin & xmax in ax coords
+    
+    y_a = _ycoords_data_to_ax(y_d, ax=ax)
+    if (not forceplot) and abs(y_a)>2:
+        print("Refusing to draw hline at y=",y_a,"in axes coords.\n" +\
+              "    Use hline(forceplot=True) to draw this line anyway.")
+        return #exits hline entirely.
     
     ax.axhline(y_d, xmin_a, xmax_a, **kwargs)
     
@@ -1032,7 +1153,7 @@ def hline(y, text=None, textparams=dict(), textloc=0.5, textanchor="start",
 def vline(x, text=None, textparams=dict(), textloc=0.5, textanchor="start",
           textside="left", textdirection="up", textmargin=TEXTBOX_MARGIN,
           ymin=0, ymax=1, xspec="data", yspec="axes", textspec="axes",
-          ax=None, **kwargs):
+          ax=None, forceplot=False, **kwargs):
     """Add a vertical line across the plot, and label it if 'text' is entered.
     
     Use 'text' parameter to add text along line.
@@ -1079,6 +1200,8 @@ def vline(x, text=None, textparams=dict(), textloc=0.5, textanchor="start",
         specification of coordinate system for 'ymin' and 'ymax'.
     textspec : data" or "axes". Default: "axes"
         specification of coordinate system for 'textloc'.
+    forceplot : bool. Default: False
+        if false: vline will not draw lines beyond 2x axis limits away from axis.
     additional **kwargs get passed to ax.axvline
         
     Examples
@@ -1100,6 +1223,12 @@ def vline(x, text=None, textparams=dict(), textloc=0.5, textanchor="start",
     (ymin_a, ymax_a) = (ymin, ymax) if yspec=="axes" else \
                 (_ycoords_data_to_ax((ymin, ymax), ax=ax) \
                      if yspec=="data" else (None, None)) #ymin & ymax in ax coords
+    
+    x_a = _xcoords_data_to_ax(x_d, ax=ax)
+    if (not forceplot) and abs(x_a)>2:
+        print("Refusing to draw vline at x=",x_a,"in axes coords.\n" +\
+              "    Use vline(forceplot=True) to draw this line anyway.")
+        return #exits hline entirely.
     
     ax.axvline(x_d, ymin_a, ymax_a, **kwargs)
     
