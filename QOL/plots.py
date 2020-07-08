@@ -56,6 +56,7 @@ pqol.colorbar() #also try to remove this line and see how it changes
 #   which may be close to the textbox / legend / box in question.
 #TODO: improve pqol.text and pqol.legend documentation to show
 #   the more sophisticated overlap-checking that is now implemented.
+#TODO: check whether blurring overlap for text/legend produces better behavior.
 
 
 import numpy as np
@@ -74,7 +75,7 @@ DEFAULT_DPI=100             #for fixdpi
 XYLIM_MARGIN=0.05           #for do_xlim, do_ylim
 TEXTBOX_MARGIN=0.002        #for hline, vline
 DEFAULT_SAVE_STR="Untitled" #for savefig
-DEFAULT_GRIDSIZE=(16,16)    #(Nrows (y), Ncols (x)). for data_overlap
+DEFAULT_GRIDSIZE=(12,12)    #(Nrows (y), Ncols (x)). for data_overlap
 DEFAULT_SAVEDIR='/saved_plots/' #savefig saves to: os.getcwd()+DEFAULT_SAVEDIR
     #full directory name stored inpqol.savedir. Edit via pqol.set_savedir()
 
@@ -1016,7 +1017,7 @@ def text(s, ax_xy=None, iters=40, ax=None, gridsize=DEFAULT_GRIDSIZE,
     t = plt.text(x, y, s, bbox=bbox, ha=ha, va=va, **kwargs)
     return t
      
-def legend(iters=20, ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None,
+def legend(iters=40, ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None,
            loc='center', overlap_params=dict(),
            allow_external=False, external_margin=-0.03,
            **kwargs):
