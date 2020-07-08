@@ -74,7 +74,7 @@ DEFAULT_DPI=100             #for fixdpi
 XYLIM_MARGIN=0.05           #for do_xlim, do_ylim
 TEXTBOX_MARGIN=0.002        #for hline, vline
 DEFAULT_SAVE_STR="Untitled" #for savefig
-DEFAULT_GRIDSIZE=(12,12)    #(Nrows (y), Ncols (x)). for data_overlap
+DEFAULT_GRIDSIZE=(16,16)    #(Nrows (y), Ncols (x)). for data_overlap
 DEFAULT_SAVEDIR='/saved_plots/' #savefig saves to: os.getcwd()+DEFAULT_SAVEDIR
     #full directory name stored inpqol.savedir. Edit via pqol.set_savedir()
 
