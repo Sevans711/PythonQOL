@@ -74,7 +74,7 @@ DEFAULT_DPI=100             #for fixdpi
 XYLIM_MARGIN=0.05           #for do_xlim, do_ylim
 TEXTBOX_MARGIN=0.002        #for hline, vline
 DEFAULT_SAVE_STR="Untitled" #for savefig
-DEFAULT_GRIDSIZE=(16,16)    #(Nrows (y), Ncols (x)). for data_overlap
+DEFAULT_GRIDSIZE=(12,12)    #(Nrows (y), Ncols (x)). for data_overlap
 DEFAULT_SAVEDIR='/saved_plots/' #savefig saves to: os.getcwd()+DEFAULT_SAVEDIR
     #full directory name stored inpqol.savedir. Edit via pqol.set_savedir()
 
@@ -205,7 +205,7 @@ def iplot(x, y=None, ss=None, i=None, xfunc=lambda x: x, yfunc=lambda y: y,
     
 def dictplot(x, y=None, yfunc=lambda y:y, xfunc=lambda x:x,
              keys=None, hide_keys=None, labels='^', prefix='', suffix='', 
-             plotter=plt.plot, legend_badness=0, stylize_keys=None, **kwargs):
+             plotter=plt.plot, stylize_keys=None, **kwargs):
     """plots all data from dict on one plot, using keys as labels.
     
     Parameters
@@ -321,7 +321,7 @@ def dictplot(x, y=None, yfunc=lambda y:y, xfunc=lambda x:x,
             
     if failed_to_plot_keys != []:
         print("Warning: failed to plot for keys: "+', '.join(failed_to_plot_keys))
-    legend(badness=legend_badness)
+    legend()
 
 
 
@@ -702,7 +702,7 @@ def _get_scatterdata(ax=None):
 
 ## overlap with data in plot ##
 
-def total_overlap(ax=None, gridsize=DEFAULT_GRIDSIZE, text_weight=1,
+def total_overlap(ax=None, gridsize=DEFAULT_GRIDSIZE, text_weight=4,
                   kernel_mode=True, **kernel_params):
     """determines the total overlap of plotted data & text.
     
@@ -938,7 +938,7 @@ def _make_kernel(shape=(5,5), f=None, sigma=0.5, A=None, **fkwargs):
 
 #### annotation ####
 
-def text(s, ax_xy=None, iters=50, ax=None, gridsize=DEFAULT_GRIDSIZE,
+def text(s, ax_xy=None, iters=40, ax=None, gridsize=DEFAULT_GRIDSIZE,
          overlap=None, overlap_params=dict(), 
          allow_external=False, external_margin=-0.01, **kwargs):
     """puts textbox with text s.
@@ -971,8 +971,8 @@ def text(s, ax_xy=None, iters=50, ax=None, gridsize=DEFAULT_GRIDSIZE,
     pqol.colorbar()
     """
     default_bbox = dict(facecolor='none')
-    default_ha   = 'center'
-    default_va   = 'center'
+    default_ha   = 'left'
+    default_va   = 'bottom'
     
     bbox = kwargs.pop('bbox', default_bbox)
     ha = kwargs.pop('verticalalignment', None)
@@ -1191,7 +1191,16 @@ def draw_box(center, width, ax=None, height=None):
     x_L = center[0] - width/2.
     y_B = center[1] - height/2.
     ax.add_artist(patches.Rectangle((x_L,y_B),width,height,fill=False,color='red'))
-    
+
+def draw_bbox(bbox, ax=None, **kwargs):
+    """draws bbox == [[LLx, LLy],[URx,URy], LL='lower left', UR='upper right'."""
+    ax = ax if ax is not None else plt.gca()
+    width, height = np.array(bbox[1]) - bbox[0]
+    fill  = kwargs.pop('fill', False)
+    color = kwargs.pop('color', 'red')
+    style = dict(fill=fill, color=color)
+    ax.add_artist(patches.Rectangle(bbox[0],width,height,**style,**kwargs))
+
 def labelline(xy, xyvars=('x', 'y'), s="{:} = {:.2e} * {:} + {:.2e}"):
     """returns string label using slope & intercept from linregress(xy)"""
     l = linregress(xy)
