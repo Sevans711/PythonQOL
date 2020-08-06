@@ -38,8 +38,6 @@ pqol.colorbar() #also try to remove this line and see how it changes
     #plt.plot(<firstplot>); plt.twinx(); plt.plot(<secondplot>)
     #However there are QOL issues with labeling, colors, etc, that could be fixed.
 #check out illustrator
-#TODO: determine size of a textbox or legend before it is plotted - use that to inform how you plot.
-#   ^^^^^ this one is highest priority ^^^^^
 #TODO: option for text size as percentage of figure size.
 #TODO: properly implement do_ylim for log-scale plots.
 #TODO: increase dpi and decrease figure size? investigate...
@@ -57,6 +55,7 @@ pqol.colorbar() #also try to remove this line and see how it changes
 #TODO: improve pqol.text and pqol.legend documentation to show
 #   the more sophisticated overlap-checking that is now implemented.
 #TODO: check whether blurring overlap for text/legend produces better behavior.
+#TODO: make legend and text compatible with plt.twinx()
 
 
 import numpy as np
@@ -1175,14 +1174,43 @@ def linecalc(x1x2,y1y2):
     b=(x1*y2-x2*y1)/(x1-x2)
     return dict(m=m,b=b)
     
-def plotline(xdata, m, b, xb=0, **kwargs):
+def plotline(xdata, m, b, xb=0, **pltplotkwargs):
     """plots the line with parameters m=slope & b=y-intercept, at xdata.
     
     xb = (x where y==b). usually 0; use xb!=0 for point-slope form of line.
     """
     yline  = np.array(m * (xdata - xb) + b)
-    plt.plot(xdata, yline, **kwargs)
+    plt.plot(xdata, yline, **pltplotkwargs)
     return [xdata, yline]
+
+def line_in_box(extent, m, b, xb=0, points=50, **pltplotkwargs):
+    """plots the line with parameters m=slope & b=y-intercept, within extent.
+    
+    extent = [xmin, xmax, ymin, ymax] which line must remain within.
+    
+    xb = (x where y==b). usually 0; use xb!=0 for point-slope form of line.
+    Line will touch edges of box, but not go outside of box, indicated by extent.
+    points = number of points to put on line. Minimum 2.
+    """
+    assert points>1
+    e = extent
+    if e[1]<e[0]: e[0], e[1] = extent[1], extent[0] #ensure xmin<xmax
+    if e[3]<e[2]: e[2], e[3] = extent[3], extent[2] #ensure ymin<ymax
+    xdata = np.linspace(extent[0], extent[1], points)
+    yline = np.array(m * (xdata - xb) + b)
+    in_box = (yline < e[3]) & (yline > e[2])
+    x, y = xdata[in_box], yline[in_box]
+    plt.plot(x, y, **pltplotkwargs)
+    return [x, y]
+
+def line_on_imshow(m, b, xb=0, im=None, points=50, **pltplotkwargs):
+    """plots line over current imshow image (or the one indicated by im).
+    
+    see line_in_box funtion for parameter documentation.
+    """
+    im = im if im is not None else plt.gci()
+    return line_in_box(im._extent, m, b, xb=xb, points=points, **pltplotkwargs)
+    
 
 def draw_box(center, width, ax=None, height=None):
     """draws square if height is not entered, else draws box."""
