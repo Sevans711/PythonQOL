@@ -994,7 +994,7 @@ def text(s, ax_xy=None, iters=40, ax=None, gridsize=DEFAULT_GRIDSIZE,
         smallest_ol_i = 0
         if iters < 0: iters = int(np.min([-1 * iters, 1]) * np.product(gridsize))
         i=-1
-        while i<iters-1 or (smallest_ol is np.inf and i<np.product(gridsize)):
+        while i<iters-1 or (smallest_ol is np.inf and i<np.product(gridsize)-1):
             i+=1
             y, x = axlocs['loc'][i] #ax_y & ax_x of lower left corner of box
             x = _xcoords_ax_to_data(x, ax=ax)
