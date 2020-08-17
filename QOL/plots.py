@@ -938,7 +938,7 @@ def _make_kernel(shape=(5,5), f=None, sigma=0.5, A=None, **fkwargs):
 
 #### annotation ####
 
-def text(s, ax_xy=None, iters=40, ax=None, gridsize=DEFAULT_GRIDSIZE,
+def text(s, ax_xy=None, iters=-0.25, ax=None, gridsize=DEFAULT_GRIDSIZE,
          overlap=None, overlap_params=dict(), 
          allow_external=False, external_margin=-0.01, **kwargs):
     """puts textbox with text s.
@@ -1016,7 +1016,7 @@ def text(s, ax_xy=None, iters=40, ax=None, gridsize=DEFAULT_GRIDSIZE,
     t = plt.text(x, y, s, bbox=bbox, ha=ha, va=va, **kwargs)
     return t
      
-def legend(iters=40, ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None,
+def legend(iters=-0.5, ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None,
            loc='center', overlap_params=dict(),
            allow_external=False, external_margin=-0.03,
            **kwargs):
@@ -1024,6 +1024,7 @@ def legend(iters=40, ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None,
     
     iters is number of gridpoints to test.
         if negative, test iters * total_number_of_gridpoints points.
+        default: -0.5, means it will test half of the total number of gridpoints.
     (Tests points in ascending order of overlap with other plot elements.)
     gridsize allows for finer or coarser search.
     loc is location INSIDE best grid box.
@@ -1191,6 +1192,7 @@ def line_in_box(extent, m, b, xb=0, points=50, **pltplotkwargs):
     xb = (x where y==b). usually 0; use xb!=0 for point-slope form of line.
     Line will touch edges of box, but not go outside of box, indicated by extent.
     points = number of points to put on line. Minimum 2.
+    
     """
     assert points>1
     e = extent
@@ -1203,12 +1205,21 @@ def line_in_box(extent, m, b, xb=0, points=50, **pltplotkwargs):
     plt.plot(x, y, **pltplotkwargs)
     return [x, y]
 
-def line_on_imshow(m, b, xb=0, im=None, points=50, **pltplotkwargs):
+def line_on_imshow(m, b, xb=0, im=None, points=50,
+                   extent_overwrite=[None, None, None, None],
+                   **pltplotkwargs):
     """plots line over current imshow image (or the one indicated by im).
+    
+    extent_overwrite can be used to overwrite any parameters of the extent.
+    e.g. if you want the line to appear only for x<0, but otherwise
+         inside the imshow area, use [None, 0, None, None].
     
     see line_in_box funtion for parameter documentation.
     """
     im = im if im is not None else plt.gci()
+    ext = im._extent
+    ext = [ext[i] if extent_overwrite[i] is None else extent_overwrite[i]
+           for i in [0,1,2,3]]
     return line_in_box(im._extent, m, b, xb=xb, points=points, **pltplotkwargs)
     
 
@@ -1626,8 +1637,8 @@ def _convert_to_next_filename(name, folder=None, imin=None):
         name   = name[i+1:  ]
     if not os.path.isdir(folder):
         os.mkdir(folder)
-    l = [N.split('.')[0].replace(name, '').replace(split, '') \
-            for N in os.listdir(folder) if N.split('.')[0].endswith(name)]
+    temp = [N.split('.')[0].split(split) for N in os.listdir(folder)]
+    l = [N[0].replace(name,'') for N in temp if N[-1]==name]
     if not '' in l and imin is None:
         return folder + name #since default name does not already exist as file.
     else:
