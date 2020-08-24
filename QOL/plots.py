@@ -1168,9 +1168,13 @@ def _locs_best_i(ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None,
     return np.unravel_index(overlap.argsort(axis=None), gridsize)    
     
 def linecalc(x1x2,y1y2):
-    """returns the parameters for the line through (x1,y1) and (x2,y2)"""
+    """returns the parameters for the line through (x1,y1) and (x2,y2).
+    returns a dict: {'m':slope_of_line, 'b':y_intercept_of_line}.
+    For vertical lines, m=np.infty, b=None, and also includes xb=x_intercept.
+    """
     x1,x2=x1x2
     y1,y2=y1y2
+    if x1==x2: return dict(m=np.infty, b=None, xb=x1) #deal with vertical lines.
     m=(y1-y2)/(x1-x2)
     b=(x1*y2-x2*y1)/(x1-x2)
     return dict(m=m,b=b)
@@ -1198,10 +1202,14 @@ def line_in_box(extent, m, b, xb=0, points=50, **pltplotkwargs):
     e = extent
     if e[1]<e[0]: e[0], e[1] = extent[1], extent[0] #ensure xmin<xmax
     if e[3]<e[2]: e[2], e[3] = extent[3], extent[2] #ensure ymin<ymax
-    xdata = np.linspace(extent[0], extent[1], points)
-    yline = np.array(m * (xdata - xb) + b)
-    in_box = (yline < e[3]) & (yline > e[2])
-    x, y = xdata[in_box], yline[in_box]
+    if m!=np.infty:
+        xdata = np.linspace(extent[0], extent[1], points)
+        yline = np.array(m * (xdata - xb) + b)
+        in_box = (yline < e[3]) & (yline > e[2])
+        x, y = xdata[in_box], yline[in_box]
+    else:
+        x = np.zeros(points) + xb
+        y = np.linspace(extent[2], extent[3], points)
     plt.plot(x, y, **pltplotkwargs)
     return [x, y]
 
