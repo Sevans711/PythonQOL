@@ -1013,8 +1013,14 @@ def text(s, ax_xy=None, iters=-0.25, ax=None, gridsize=DEFAULT_GRIDSIZE,
         y, x   = axlocs['loc'][smallest_ol_i] #ax_y & ax_x of lower left corner of BEST box.
         x = _xcoords_ax_to_data(x, ax=ax)
         y = _ycoords_ax_to_data(y, ax=ax)
-    t = plt.text(x, y, s, bbox=bbox, ha=ha, va=va, **kwargs)
-    return t
+    if smallest_ol is np.inf and allow_external==False:
+        print("Text is wider than plot; allowing text to extend beyond plot edges...")
+        return text(s, allow_external=True,
+                    ax_xy=ax_xy, iters=iters, ax=ax, gridsize=gridsize,
+                    overlap=overlap, overlap_params=overlap_params, **kwargs)
+    else:
+        t = plt.text(x, y, s, bbox=bbox, ha=ha, va=va, **kwargs)
+        return t
      
 def legend(iters=-0.5, ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None,
            loc='center', overlap_params=dict(),
@@ -1046,7 +1052,7 @@ def legend(iters=-0.5, ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None,
     smallest_ol_i = 0
     if iters < 0: iters = int(np.min([-1 * iters, 1]) * np.product(gridsize))
     i=-1
-    while i<iters-1 or (smallest_ol is np.inf and i<np.product(gridsize)):
+    while i<iters-1 or (smallest_ol is np.inf and i<np.product(gridsize)-1):
         i+=1
         y, x   = axlocs['loc'][i] #ax_y & ax_x of lower left corner of box
         l = plt.legend(bbox_to_anchor=(x, y, axlocs["w"], axlocs["h"]), loc=loc, **kwargs)
@@ -1061,6 +1067,11 @@ def legend(iters=-0.5, ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None,
             smallest_ol   = ol
     y, x   = axlocs['loc'][smallest_ol_i] #ax_y & ax_x of lower left corner of BEST box.
     l = plt.legend(bbox_to_anchor=(x, y, axlocs["w"], axlocs["h"]), loc=loc, **kwargs)
+    if smallest_ol is np.inf and allow_external==False:
+        print("Legend is wider than plot; allowing legend to extend beyond plot edges...")
+        return legend(allow_external=True,
+                    iters=iters, ax=ax, gridsize=gridsize, overlap=overlap,
+                    loc=loc, overlap_params=overlap_params, **kwargs)
     return l
 
 def locs_visual(ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None,
