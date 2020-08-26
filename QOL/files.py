@@ -21,14 +21,14 @@ Created on Wed Jan 22 11:16:36 2020
 import h5py
 import os
 
-DEFAULT_H5DIR='/h5dir/'
+DEFAULT_H5DIR='/h5storage/'
 
 ### SET DEFAULT STORAGE LOCATION FOR h5 FILES
 def set_h5dir(new_h5dir=None, DEFAULT=DEFAULT_H5DIR):
     """sets h5dir to the new_h5dir, or default if None is passed.
     
     h5dir is the default location for h5 file storage
-    it defaults to os.getcwd()+'/h5dir/'.
+    it defaults to os.getcwd()+'/h5storage/'.
     access via: import QOL.files as fqol; fqol.h5dir
     """
     global h5dir
