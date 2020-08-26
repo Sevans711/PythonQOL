@@ -21,18 +21,36 @@ Created on Wed Jan 22 11:16:36 2020
 import h5py
 import os
 
-h5dir = os.getcwd()+'/h5storage/' if 'h5dir' not in locals().keys() else locals()['h5dir']
-"""default location for h5 file storage. Change using set_dir(new_dir)"""
+DEFAULT_H5DIR='/h5dir/'
 
-def set_dir(new_dir):
-    """sets h5dir to the new_dir.
-    h5dir is the default location for h5 file storage.
-    it defaults to os.getcwd()+'/h5storage'.
-    access via: import FileQOL as fqol; fqol.h5dir
+### SET DEFAULT STORAGE LOCATION FOR h5 FILES
+def set_h5dir(new_h5dir=None, DEFAULT=DEFAULT_H5DIR):
+    """sets h5dir to the new_h5dir, or default if None is passed.
+    
+    h5dir is the default location for h5 file storage
+    it defaults to os.getcwd()+'/h5dir/'.
+    access via: import QOL.files as fqol; fqol.h5dir
     """
     global h5dir
-    h5dir = new_dir
+    global h5dir_is_default
+    if new_h5dir is None:         #set to default.
+        h5dir = os.getcwd()+DEFAULT
+        h5dir_is_default = True
+    else:                           #set to inputted h5dir
+        h5dir = new_h5dir
+        h5dir_is_default = False
+    return h5dir
+
+#SET DEFAULT h5dir HERE#
+h5dir_is_default = locals()['h5dir_is_default'] if 'h5dir_is_default' in locals().keys() \
+                else True
+
+if h5dir_is_default or 'h5dir' not in locals().keys():
+    set_h5dir()
     
+    
+### BEGIN FUNCTION DEFINITIONS
+
 def convert_to_filename(name, folder=h5dir):
     return name if name.startswith('/') else folder + name
     
