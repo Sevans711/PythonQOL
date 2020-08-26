@@ -1607,7 +1607,7 @@ def set_savedir(new_savedir=None, DEFAULT=DEFAULT_SAVEDIR):
     global savedir
     global savedir_is_default
     if new_savedir is None:         #set to default.
-        savedir = os.getcwd()+'/saved_plots/'
+        savedir = os.getcwd()+DEFAULT
         savedir_is_default = True
     else:                           #set to inputted savedir
         savedir = new_savedir
@@ -1615,8 +1615,7 @@ def set_savedir(new_savedir=None, DEFAULT=DEFAULT_SAVEDIR):
     return savedir
 
     #SET DEFAULT savedir HERE#
-savedir_is_default = locals()['savedir_is_default'] \
-                     if 'savedir_is_default' in locals().keys() \
+savedir_is_default = locals()['savedir_is_default'] if 'savedir_is_default' in locals().keys() \
                 else True
 
 if savedir_is_default or 'savedir' not in locals().keys():
