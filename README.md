@@ -24,9 +24,11 @@ One example is: `cd /Users/YourUserName/Desktop`)_
 #### Choice 1 - "pip install" method. (Recommended)
 ```
 cd PythonQOL
-pip install .
+pip install -e .
 ```
-This has the benefit of being relatively simple, and also if you ever want to uninstall you can just type `pip uninstall QOL`.
+This has the benefit of being relatively simple, and also if you ever want to uninstall you can just type `pip uninstall QOL`.  
+If you have no intentions of ever editting this code, you can drop the `-e` part and just do `pip install .`. Explanation:  
+The `-e` flag puts your installation in development mode, as per `python setup.py develop`. Basically, "development mode" means that if you make your own changes to this package, the changes will apply the next time you `import QOL`. Without development mode, you need to `pip install` the editted package every time you make edits in order for them to take effect.
 
 #### Choice 2 - "pythonpath" method.
 Add the `PythonQOL` folder (if you're following these steps, it will be at the location `Dir/PythonQOL`) to your PYTHONPATH. _(The PATH tells python where it's allowed to search for File when you type "import File".)_  
