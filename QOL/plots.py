@@ -6,6 +6,9 @@ Created on Tue Jan 14 19:52:21 2020
 @author: Sevans
 
 Useful and user-friendly/convenient codes for making matplotlib plots.
+
+See https://github.com/Sevans711/PythonQOL/wiki
+(the sections about QOL.plots) for more help.
 """
 
 #KNOWN ISSUES:
@@ -38,12 +41,10 @@ pqol.colorbar() #also try to remove this line and see how it changes
     #plt.plot(<firstplot>); plt.twinx(); plt.plot(<secondplot>)
     #However there are QOL issues with labeling, colors, etc, that could be fixed.
 #check out illustrator
-#TODO: option for text size as percentage of figure size.
 #TODO: properly implement do_ylim for log-scale plots.
+#TODO: option for text size as percentage of figure size.
 #TODO: increase dpi and decrease figure size? investigate...
 #   see e.g.: https://stackoverflow.com/questions/47633546/relationship-between-dpi-and-figure-size
-#TODO: add "spot" parameter to legend() & text(), & show in locs_visual().
-#   works like badness parameter (&overwrites), except locations are fixed.
 #TODO: implement max number of ticks for non-discrete colorbars.
 #TODO: dynamically guess best step size for discrete imshow
 #TODO: implement x label text overlap checker.
@@ -1014,7 +1015,8 @@ def text(s, ax_xy=None, iters=-0.25, ax=None, gridsize=DEFAULT_GRIDSIZE,
         x = _xcoords_ax_to_data(x, ax=ax)
         y = _ycoords_ax_to_data(y, ax=ax)
     if smallest_ol is np.inf and allow_external==False:
-        print("Text is wider than plot; allowing text to extend beyond plot edges...")
+        print("Text is wider than plot. Increase external_margin or decrease " \
+              "size of text. For now, allowing text to extend beyond plot edges...")
         return text(s, allow_external=True,
                     ax_xy=ax_xy, iters=iters, ax=ax, gridsize=gridsize,
                     overlap=overlap, overlap_params=overlap_params, **kwargs)
@@ -1024,7 +1026,7 @@ def text(s, ax_xy=None, iters=-0.25, ax=None, gridsize=DEFAULT_GRIDSIZE,
      
 def legend(iters=-0.5, ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None,
            loc='center', overlap_params=dict(),
-           allow_external=False, external_margin=-0.03,
+           allow_external=False, external_margin=-0.00,
            **kwargs):
     """puts a legend where pqol thinks is best, based on data in plot.
     
@@ -1068,7 +1070,8 @@ def legend(iters=-0.5, ax=None, gridsize=DEFAULT_GRIDSIZE, overlap=None,
     y, x   = axlocs['loc'][smallest_ol_i] #ax_y & ax_x of lower left corner of BEST box.
     l = plt.legend(bbox_to_anchor=(x, y, axlocs["w"], axlocs["h"]), loc=loc, **kwargs)
     if smallest_ol is np.inf and allow_external==False:
-        print("Legend is wider than plot; allowing legend to extend beyond plot edges...")
+        print("Legend is wider than plot. Increase external_margin or decrease " \
+              "size of legend. For now, allowing legend to extend beyond plot edges...")
         return legend(allow_external=True,
                     iters=iters, ax=ax, gridsize=gridsize, overlap=overlap,
                     loc=loc, overlap_params=overlap_params, **kwargs)
@@ -1633,18 +1636,23 @@ if savedir_is_default or 'savedir' not in locals().keys():
     set_savedir()
     #back to function definitions#
 
-def _convert_to_next_filename(name, folder=None, imin=None):
+def _convert_to_next_filename(name, folder=None, imin=None, makedir_if_needed=True):
     """returns string for next filename starting with name, in folder.
     
     if folder is None, uses folder=savedir.
     
     Folder will be part of return; i.e. result contains the full path.
     If name starts with '/', ignores the 'folder' kwarg.
-    Attempts to make folder if implied folder does not exist.
+    Attempts to make folder if implied folder does not exist. (Unless makedir_if_needed=False)
     Convention is to use filenames in order: [name, 1- name, 2- name, ...].
     Will not re-use earlier names if files are deleted.
     e.g. if only [name, 3- name, 4- name] exist, will return 5- name, not 1- name.
     if imin is not None, starts labeling at imin.
+    
+    KNOWN ISSUES: treats all file-types the same.
+    e.g. if the folder contains ABC.txt and you want a plot ABC.png,
+        this function will tell you the next available filename is 1- ABC.png.
+        SUGGESTION: implement a file extension filter option for this function.
     """
     split = "- " #splits name and number.
     folder = folder if folder is not None else savedir
@@ -1654,13 +1662,18 @@ def _convert_to_next_filename(name, folder=None, imin=None):
         folder = name[   : i] +'/'
         name   = name[i+1:  ]
     if not os.path.isdir(folder):
-        os.mkdir(folder)
+        if makedir_if_needed:
+            print(folder,"did not exist. Making this directory now...")
+            os.mkdir(folder)
+        else:
+            print(folder,"does not exist. Not making it automatically because",\
+                  "makedir_if_needed was False in _convert_to_next_filename.")
     temp = [N.split('.')[0].split(split) for N in os.listdir(folder)]
     l = [N[0].replace(name,'') for N in temp if N[-1]==name]
     if not '' in l and imin is None:
         return folder + name #since default name does not already exist as file.
     else:
-        if '' in l: l.remove('')
+        while '' in l: l.remove('')
         x = np.max([int(N) for N in l]) if len(l)>0 else 0
         imin = imin if imin is not None else 0
         return folder + str(max(x + 1, imin)) + split + name
