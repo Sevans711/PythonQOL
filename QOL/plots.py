@@ -70,7 +70,7 @@ from matplotlib.colors import LinearSegmentedColormap #only use for discrete_cma
 from QOL.codes import strmatch #only used in pqol.dictplot
 from QOL.codes import strmatches #only used in pqol.dictplot
 
-DEFAULT_FIGSIZE=(6,6)       #for fixfigsize
+DEFAULT_FIGSIZE=(4,4)       #for fixfigsize
 DEFAULT_DPI=100             #for fixdpi
 XYLIM_MARGIN=0.05           #for do_xlim, do_ylim
 TEXTBOX_MARGIN=0.002        #for hline, vline
