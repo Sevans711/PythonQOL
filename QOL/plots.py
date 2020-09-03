@@ -14,6 +14,15 @@ See https://github.com/Sevans711/PythonQOL/wiki
 #KNOWN ISSUES:
 '''
 KNOWN ISSUES:
+(1)
+#Text and legend placement gets very confused when using non-linear scales.
+#e.g. plt.yscale('log') will screw up text and legend placement algorithms.
+#     You can see the 'overlap' the algorithm calculates via
+          pqol.imshow_overplot(pqol.total_overlap())
+#     This will help show how it is messing up.
+#     But still need to figure out how to fix it.
+    
+(2)
 #bbox_corners for text is not actually correct (but it is close to correct).
 #for example, try the following with in-line plotting:
 plt.figure()
@@ -1636,7 +1645,8 @@ if savedir_is_default or 'savedir' not in locals().keys():
     set_savedir()
     #back to function definitions#
 
-def _convert_to_next_filename(name, folder=None, imin=None, makedir_if_needed=True):
+def _convert_to_next_filename(name, folder=None, imin=None,
+                              makedir_if_needed=True, verbose=True):
     """returns string for next filename starting with name, in folder.
     
     if folder is None, uses folder=savedir.
@@ -1663,7 +1673,8 @@ def _convert_to_next_filename(name, folder=None, imin=None, makedir_if_needed=Tr
         name   = name[i+1:  ]
     if not os.path.isdir(folder):
         if makedir_if_needed:
-            print(folder,"did not exist. Making this directory now...")
+            if verbose:
+                print("Requested directory did not exist. Making it now:\n    ",folder)
             os.mkdir(folder)
         else:
             print(folder,"does not exist. Not making it automatically because",\
@@ -1678,7 +1689,7 @@ def _convert_to_next_filename(name, folder=None, imin=None, makedir_if_needed=Tr
         imin = imin if imin is not None else 0
         return folder + str(max(x + 1, imin)) + split + name
 
-def savefig(fname=None, folder=None, Verbose=True, imin=None, **kwargs):
+def savefig(fname=None, folder=None, verbose=True, imin=None, **kwargs):
     """Saves figure via plt.savefig()
     
     if folder is None, uses folder=savedir.
@@ -1705,7 +1716,7 @@ def savefig(fname=None, folder=None, Verbose=True, imin=None, **kwargs):
     saveto = _convert_to_next_filename(fname, folder=folder, imin=imin)
     bbox_inches = kwargs.pop("bbox_inches", 'tight')
     plt.savefig(saveto, bbox_inches=bbox_inches, **kwargs)
-    if Verbose: print("Active plot saved to",saveto)
+    if verbose: print("Active plot saved to",saveto)
 
 #### References to matplotlib built-in colors, markers, etc. ####
 #copied from matplotlib docs.
