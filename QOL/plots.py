@@ -66,6 +66,9 @@ pqol.colorbar() #also try to remove this line and see how it changes
 #   the more sophisticated overlap-checking that is now implemented.
 #TODO: check whether blurring overlap for text/legend produces better behavior.
 #TODO: make legend and text compatible with plt.twinx()
+#TODO: semilog scales: x-> sign(x) * log(1 + abs(x)) #or something like that.
+#TODO: check for overlapping lines and deal with them...
+#   or vary linewidth, e.g. lw= 5 - const * line_number / number_of_lines
 
 
 import numpy as np
@@ -391,7 +394,9 @@ def colorbar(im=None, ax=None, loc="right", size="5%", pad=0.05, label=None,
     cax = divider.append_axes(loc, size=size, pad=pad)
     
     cbar = plt.colorbar(im, cax=cax, ticks=ticks, **kwargs)
-    plt.clim(clim)
+    if clim is not None and clim[0] is not None:
+        #^^^necessary check in case colorbar is for non-image (e.g. contours).
+        plt.clim(clim)
     if discrete:
         plt.clim(_discrete_clim(im))
         if grid is True: grid = grid_params.pop('grid', True)
@@ -647,7 +652,7 @@ def _find_xlim(ylim=True, data=None, ax=None, margin=XYLIM_MARGIN):
 def _find_ylim(xlim=True, data=None, ax=None, margin=XYLIM_MARGIN):
     """returns ylim based on xlim. see _find_xylim for further documentation."""
     return _find_xylim(xlim=xlim, ylim=None, data=data, ax=ax, margin=margin)
-    
+
  
 #### data overlap/density in plotspace ####
     
@@ -1666,28 +1671,29 @@ def _convert_to_next_filename(name, folder=None, imin=None,
     """
     split = "- " #splits name and number.
     folder = folder if folder is not None else savedir
+    sep = os.path.sep
     
-    if name.startswith('/'):
-        i = name.rfind('/')
-        folder = name[   : i] +'/'
-        name   = name[i+1:  ]
+    if os.path.isabs(name): #if name is a directory
+        folder, name = os.path.split(name)
     if not os.path.isdir(folder):
         if makedir_if_needed:
             if verbose:
-                print("Requested directory did not exist. Making it now:\n    ",folder)
+                print("Requested directory did not exist. Making it now:\n    ",
+                      os.path.abspath(folder))
             os.mkdir(folder)
         else:
             print(folder,"does not exist. Not making it automatically because",\
                   "makedir_if_needed was False in _convert_to_next_filename.")
     temp = [N.split('.')[0].split(split) for N in os.listdir(folder)]
     l = [N[0].replace(name,'') for N in temp if N[-1]==name]
-    if not '' in l and imin is None:
-        return folder + name #since default name does not already exist as file.
+    if not '' in l and imin is None: #default name does not already exist as file.
+        return os.path.abspath(os.path.join(folder,name))
     else:
         while '' in l: l.remove('')
         x = np.max([int(N) for N in l]) if len(l)>0 else 0
         imin = imin if imin is not None else 0
-        return folder + str(max(x + 1, imin)) + split + name
+        return os.path.abspath(os.path.join
+                               (folder, str(max(x + 1, imin)) + split + name))
 
 def savefig(fname=None, folder=None, verbose=True, imin=None, **kwargs):
     """Saves figure via plt.savefig()
