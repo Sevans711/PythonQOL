@@ -31,8 +31,7 @@ import QOL.plots as pqol
       stage('test import') {
          steps {
             sh '''#!/bin/csh 
-            chmod +x test.py
-            ./test.py 
+            python -m test.py || [[ $? -eq 1 ]]
             exit	  
 '''
          }
