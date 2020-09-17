@@ -5,8 +5,10 @@ Created on Mon Mar  2 15:01:55 2020
 
 @author: Sevans
 
-Snippets of very useful/elegant code that can be non-trivial to write.
-Check documentation of function for info on how to write the code yourself.
+Generally, this file is for code that doesn't fit thematically in the other files,
+or for snippets of very useful/elegant code that can be non-trivial to write.
+For particularly concise codes, function documentation includes code so you can
+    learn to write the code yourself if you so choose.
 """
 
 #TODO: wrapper functions in general
@@ -54,6 +56,53 @@ def pop_from_kwargs(popthis, kwargs, default=None):
     """
     popped = kwargs.pop(popthis, default)
     return (popped, kwargs)
+
+#UNIT_PICK: choose good unit system based on input value.
+#used for unit_pick function:
+DEFAULT_UNITS = [(1e9, 'G'), (1e6, 'M'),  (1e3, 'k'),
+                 (1, ''),
+                 (1e-3, 'm'), (1e-6, '$\mu$'), (1e-9, 'n')]
+#unit_pick function:
+def unit_pick(val, units=DEFAULT_UNITS, more_units=[], return_val=False):
+    """picks decent units prefix for val. Returns (prefix, conversion factor).
+    multiply val by conversion factor to get val in <prefix> units.
+    
+    e.g. unit_pick(2000) == ('k', 1e-3),
+    <--> 2000m == 2000*1e-3 km == 2km.
+    
+    return_val: bool, Default: False.
+        False -> returns (prefix, conversion factor)
+        True  -> returns (prefix, conversion factor, val * conversion factor).
+    
+    Default units have 1e9, 1e6, 1e3, 1, 1e-3, 1e-6, and 1e-9.
+    Units and more_units do not need to be sorted, as long as they are formatted
+    properly, as a list of (unit, prefix) pairs such as [(1e9, 'G'), (1e3, 'k')].
+    
+    The easiest way to customize this function to check more unit possibilities
+    is via the more_units parameter. For example, to add the centi (1e-2) and
+    Tera (1e12) prefixes: unit_pick(val, more_units=[(1e-2, 'c'), (1e12, 'T')]).
+    
+    More detailed example:
+        x = 0.003                    #pick a number, any number
+        base_units = 'K'             #units of x
+        prefix, unit = unit_pick(x)
+        print(x, base_units, ' = ', x * unit, prefix, base_units, sep='')
+        #>>> when x=0.003, prints: 0.003K = 3.0mK
+    """
+    #add more_units to list if entered; sort units.
+    units = units if type(units)==list else list(units)
+    units += more_units       #list addition; i.e. append
+    units = sorted(units, key=lambda x: x[0], reverse=True) #smallest unit at end.
+    
+    #main work of function
+    u, p = units[-1] #default to smallest value of units, in case val < all units.
+    for u, p in units:
+        if val > u: break
+    cf = 1./u #conversion factor
+    
+    #returned list is based on return_val parameter
+    return (p, cf, val * cf) if return_val else (p, cf)
+
 
 def strmatch(x, y):
     """returns whether x 'matches' y.
