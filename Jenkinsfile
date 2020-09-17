@@ -1,4 +1,8 @@
-/* comment test */
+/*
+If you don't know what this file is, you can ignore it completely.
+It has nothing to do with making the PythonQOL code work.
+It is related making it easier to test or use PythonQOL in a code pipeline.
+*/
 
 pipeline {
    agent any
