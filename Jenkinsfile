@@ -11,6 +11,13 @@ pipeline {
 '''
          }
       }
+         stage('installing') {
+         steps {
+            sh '''#!/bin/csh 
+            pip install -e .
+'''
+         }
+      }
          stage('create test py') {
          steps {
             sh '''#!/bin/csh 
