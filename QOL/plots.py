@@ -9,9 +9,13 @@ Useful and user-friendly/convenient codes for making matplotlib plots.
 
 See https://github.com/Sevans711/PythonQOL/wiki
 (the sections about QOL.plots) for more help.
+
+In documentation, this file is referred to as pqol, and assumed to be imported as:
+    import QOL.plots as pqol
 """
 
-#KNOWN ISSUES:
+
+##KNOWN ISSUES:
 '''
 KNOWN ISSUES:
 (1)
@@ -37,35 +41,62 @@ pqol.hline(bbc[1][1]) #draw hline at text bbox's top coord
 pqol.colorbar() #also try to remove this line and see how it changes
 '''
 
+
+##NOTES:
+
+#You can search rcParams using plt.rcParams.find_all(<searchstring>)
+#
+#Can customize axes placement. E.g.:
+'''
+A, B, C = np.random.rand(3,5,5)
+fig = plt.figure(figsize=(4,4))
+ax1 = fig.add_axes((-0.1, 0.0, 0.8, 0.5))
+ax0 = fig.add_axes((0.1, 0.3, 0.5, 0.7))
+plt.imshow(A*1e-3, aspect='auto')
+cb = pqol.colorbar()
+'''
+#Can change tick formatting using, e.g.:
+'''
+mf = mpl.ticker.ScalarFormatter()
+mf.set_powerlimits((-3,3))          #in this example, just change the powerlimits.
+plt.gca().yaxis.set_major_formatter(mf) #in this example, just change the yaxis tick formatter.
+'''
+#Goal was to learn how to make figure with set size & position for axes.
+
+
+##TODOS:
+
 #TODO: Config file for defaults...
 #TODO: read default values in functions instead of at function definition.
-    #this allows changing default values to impact function behavior
-    #without requiring the module to be reloaded.
-    #(also if function code wasn't changed then import QOL.plots will not be
-    # sufficient to update default; requires restarting python session.)
+#   this allows changing default values to impact function behavior
+#   without requiring the module to be reloaded.
+#   (also if function code wasn't changed then import QOL.plots will not be
+#   sufficient to update default; requires restarting python session.)
+#   (9/19/20) makes defaults less clear in function documentation though.
+#               consider alternative solution?
 #TODO: implement title for colorbar()
 #TODO: implement scatter plot marker cycle. use cycler to do cycles?
 #TODO: implement different left/right yscales to put two plots on same grid.
-    #Can be accomplished by just doing:
-    #plt.plot(<firstplot>); plt.twinx(); plt.plot(<secondplot>)
-    #However there are QOL issues with labeling, colors, etc, that could be fixed.
+#   Can be accomplished by just doing:
+#   plt.plot(<firstplot>); plt.twinx(); plt.plot(<secondplot>)
+#   However there are QOL issues with labeling, colors, etc, that could be fixed.
+#TODO: make legend and text compatible with plt.twinx().
+#   (9/19/20) currently, they seem to ignore all the data and text/legend from the original axes.
 #check out illustrator
 #TODO: properly implement do_ylim for log-scale plots.
 #TODO: option for text size as percentage of figure size.
-#TODO: increase dpi and decrease figure size? investigate...
-#   see e.g.: https://stackoverflow.com/questions/47633546/relationship-between-dpi-and-figure-size
+#   somewhat implemented, but needs work. See TODO in pqol.figure documentation.
 #TODO: implement max number of ticks for non-discrete colorbars.
-#TODO: dynamically guess best step size for discrete imshow
+#   (9/19/20) probably achievable via tick parameters in rcParams, or something related.
+#TODO: dynamically guess best step size for discrete imshow.
+#   (9/19/20) ?? I no longer know what this means or if it was accomplished.
 #TODO: implement x label text overlap checker.
 #   (prevent xticks from overlapping, e.g. when font is large.)
+#   (9/19/20) somewhat alleviated via changing the default ticklimits. See fixticklimits().
 #TODO: std on vars in dictplot.
 #TODO: improve efficiency of test_overlap and text_overlap.
 #   instead of looping through the entire grid, only loop through those boxes
 #   which may be close to the textbox / legend / box in question.
-#TODO: improve pqol.text and pqol.legend documentation to show
-#   the more sophisticated overlap-checking that is now implemented.
-#TODO: check whether blurring overlap for text/legend produces better behavior.
-#TODO: make legend and text compatible with plt.twinx()
 #TODO: semilog scales: x-> sign(x) * log(1 + abs(x)) #or something like that.
 #TODO: check for overlapping lines and deal with them...
 #   or vary linewidth, e.g. lw= 5 - const * line_number / number_of_lines
@@ -79,22 +110,44 @@ from scipy.stats import linregress
 import os #only used for saving figures.
 from matplotlib.colors import LinearSegmentedColormap #only use for discrete_cmap
 
-from QOL.codes import strmatch #only used in pqol.dictplot
+from QOL.codes import str2idx    #only used in iplot
+from QOL.codes import strmatch   #only used in pqol.dictplot
 from QOL.codes import strmatches #only used in pqol.dictplot
 
+
+##pqol's set of better defaults for matplotlib parameters:
+USE_PQOL_RCPARAM_DEFAULTS = True #whether to use pqol defaults or not. 
+         #will not apply retroactively if pqol was already loaded;
+         #but subsequent loadings of pqol would no longer overwrite any matplotlib defaults.
 DEFAULT_FIGSIZE=(4,4)       #for fixfigsize
 DEFAULT_DPI=100             #for fixdpi
+DEFAULT_TICKLIMS=(-3, 4)    #default tick limits. See: matplotlib set_powerlims for more info.
+                            #   or, see (in this file) fixticklimits() for more info.
+                            #(-3, 4) ensures there are never more than 3 zeros in a row.
+                            #e.g. 0.001 can appear but 0.0001 will be written 1e-4.
+
+##Immutable constants:
+TEXT_PPI = 72               #points per inch for text. Always 72.
+
+##pqol's set of defaults for parameters for pqol functions:
 XYLIM_MARGIN=0.05           #for do_xlim, do_ylim
 TEXTBOX_MARGIN=0.002        #for hline, vline
 DEFAULT_SAVE_STR="Untitled" #for savefig
 DEFAULT_GRIDSIZE=(12,12)    #(Nrows (y), Ncols (x)). for data_overlap
 DEFAULT_SAVEDIR='/saved_plots/' #savefig saves to: os.getcwd()+DEFAULT_SAVEDIR
     #full directory name stored inpqol.savedir. Edit via pqol.set_savedir()
+DEFAULT_TEXTSIZE_SCALING='weighted' #default for _figsize_to_base_fontsize scaling parameter.
+DEFAULT_TEXTSIZE_BASE_FRAC= 1./(4 * TEXT_PPI) #parameter for textsize calculations.
+    #percent of scaling factor which textsize base should be.
+    #see _figsize_to_base_fontsize for more info.
+DEFAULT_FONT_S = 12 #default 'small' fontsize
+DEFAULT_FONT_M = 15 #default 'medium' fontsize
+DEFAULT_FONT_L = 18 #default 'large' fontsize
 
 
 #### set better defaults ####
 
-def fixfonts(s=12, m=15, l=18):
+def fixfonts(s=DEFAULT_FONT_S, m=DEFAULT_FONT_M, l=DEFAULT_FONT_L):
     """sets better default font sizes for plots"""
     plt.rc('axes', titlesize=l)    # fontsize of the axes title
     plt.rc('figure', titlesize=l)  # fontsize of the figure title
@@ -104,8 +157,7 @@ def fixfonts(s=12, m=15, l=18):
     plt.rc('legend', fontsize=m)   # legend fontsize
     
     plt.rc('xtick', labelsize=s)   # fontsize of the tick labels
-    plt.rc('ytick', labelsize=s)   # fontsize of the tick labels
-    
+    plt.rc('ytick', labelsize=s)   # fontsize of the tick labels    
 
 def fixfigsize(size=DEFAULT_FIGSIZE):
     """sets better default figure size for plots"""
@@ -115,46 +167,135 @@ def fixdpi(dpi=DEFAULT_DPI):
     """sets better default figure dpi for plots"""
     plt.rcParams['figure.dpi'] = dpi
     
+def fixticklimits(limits=DEFAULT_TICKLIMS):
+    """sets better default tick limits.
+    
+    tick limits are the min/max size of tick labels before they are replaced
+    by scientific notation. e.g. (-3,4) means use scientific notation when any
+    tick value has exponent -3 or lower, or 4 or higher.
+    E.g. (-3, 4) produces: 1e−3, 9.9e-3, 0.01, 9999, 1e4.
+    """
+    plt.rc('axes.formatter', limits=limits)
+    
 def set_plot_defaults():
     """sets better defauls (fonts & figsize) for plots"""
     fixfigsize()
     fixfonts()
     fixdpi()
+    fixticklimits()
     
-set_plot_defaults() #actually sets the defaults upon loading/importing QOL/plots.py
+if USE_PQOL_RCPARAM_DEFAULTS:
+    set_plot_defaults() #actually sets the defaults upon loading/importing QOL/plots.py
 
 
-#### slice string interpreter ####
-    #Not intrinsically related to "plots" though. belongs in different QOL file?
-    #Used mainly for iplot method, below.
-def str2idx(string):
-    """converts s into the indexing tuple it represents.
+#### pqol.figure - plt.figure but with extra goodness ####
+
+def figure(*args, **kwargs):
+    """does some nice pqol things then returns plt.figure(*args, **kwargs).
     
-    If string includes brackets [], they will be ignored.
-    Ellipses (...) are not currently supported.
+    Note to user (based on current implementation):
+        Currently, this function just sets new default font sizes, and returns figure object.
+        For best use, either generate all your figures with pqol.figure,
+        or run pqol.fixfonts() after generating the figure, to restore font sizes
+        to their default values.
+
+    This function currently makes changes to the default fontsizes if figsize!=(4,4),
+        so that they are the same relative size as they would be on a (4,4) figure.
+        scaling rule for non-square figures can be adjusted using
+        scaling=<string for desired rule>. See pqol._figsize_to_base_fontsize.
     
-    Examples
-    --------
-    >>> pqol.str2idx(":9")
-    (slice(None, 9, None),)    
-    >>> np.arange(20)[pqol.str2idx("3:9")]
-    array([3, 4, 5, 6, 7, 8])         
-    >>> np.arange(20).reshape(4,5)[pqol.str2idx(":,1")]
-    array([ 1,  6, 11, 16])     
-    >>> np.arange(20).reshape(4,5)[pqol.str2idx("::2,1")]
-    array([ 1, 11]) 
+    TODO: implement this function so that it only changes the fontsizes
+        for the generated figure, but does not change the defaults in rcParams.
     """
-    ans = []
-    dims = (string.replace('[','').replace(']','')).split(',')
-    for slicestring in dims:
-        s = slicestring.split(":")
-        if len(s)==1:
-            ans += [int(s[0])]
-        else:
-            ans += [slice( *[(int(x) if x!='' else None) for x in s] )]
-    return tuple(ans)
+    #pop pqol things from kwargs so they dont go to plt.figure()
+    get_base_kwargs = dict(
+                scaling   = kwargs.pop('scaling'  , DEFAULT_TEXTSIZE_SCALING),
+                base_frac = kwargs.pop('base_frac', DEFAULT_TEXTSIZE_BASE_FRAC),
+                ppi       = kwargs.pop('ppi'      , TEXT_PPI),
+                verbose   = kwargs.pop('verbose'  , True)       )
+    fixfonts_kwargs = dict(
+             s = kwargs.pop('s', DEFAULT_FONT_S),
+             m = kwargs.pop('m', DEFAULT_FONT_M),
+             l = kwargs.pop('l', DEFAULT_FONT_L)         )
+    
+    #make figure, to learn figure size.
+    fig = plt.figure(*args, **kwargs)
+    figsize = get_figsize(fig)
+    
+    #do pqol things - currently: just changes default fontsizes in rcParams.
+    base = _figsize_to_base_fontsize(figsize, **get_base_kwargs)
+    new_font_sizes = {key: base * size for key, size in fixfonts_kwargs.items()}
+    fixfonts(**new_font_sizes)
+    
+    #return figure object.
+    return fig
+    
+    
+def get_figsize(fig=None):
+    """returns figsize in inches.
+    e.g. (X,Y) as per plt.figure(figsize=(X,Y)). X=width; Y=height.
+    
+    uses current figure (plt.gcf()) if fig is None.
+    """
+    fig = fig if fig is not None else plt.gcf()
+    bb = fig.bbox_inches
+    return (bb.width, bb.height)
 
-
+def _figsize_to_base_fontsize(figsize,
+                              scaling=DEFAULT_TEXTSIZE_SCALING,
+                              base_frac=DEFAULT_TEXTSIZE_BASE_FRAC,
+                              ppi=TEXT_PPI,
+                              verbose=True):
+    """returns 'base' fontsize based on figure size.
+    
+    'base' is 1 for scaling==4 and default base_frac(==1/(4*72)) and ppi(==72).
+    To get same fractional size of text, for any figure size, use
+        fontsize = base * {desired fontsize on a 4x4 figure}.
+    
+    scaling: string, Default: 'weighted'
+        Instructs how to turn height & width into scale factor.
+        For square plot (when height==width), all options produce same results.
+        Options:
+            'weighted'       -> sqrt((height**2 + width**2)/2)
+            'long'  or 'max' -> max(height, width)
+            'short' or 'min' -> min(height, width)
+            'height' or 'h'  -> height
+            'width'  or 'w'  -> width
+            Anything else    -> use the DEFAULT_TEXTSIZE_SCALING option.
+    """
+    tsf = _textsize_scaling_factor(figsize, scaling=scaling, verbose=verbose)
+    return  tsf * base_frac * ppi
+    
+def _textsize_scaling_factor(figsize, scaling=DEFAULT_TEXTSIZE_SCALING, verbose=True):
+    """Convert figsize to scale factor based on figsize.
+    See _figsize_to_base_fontsize documentation for more details.
+    
+    verbose: whether to print when scaling is invalid and default is used instead.
+    """
+    w, h = figsize
+    scale = scaling.lower() #converts to lowercase.
+    if scale == 'weighted':
+        return np.sqrt((w**2 + h**2)/2)
+    elif scale in ['long', 'max']:
+        return max(w, h)
+    elif scale in ['short', 'min']:
+        return min(w, h)
+    elif scale in ['height', 'h']:
+        return h
+    elif scale in ['width', 'w']:
+        return w
+    else:
+        allowed_scales = ['weighted', 'long', 'max', 'short', 'min', 'height', 'h', 'width', 'w']
+        if verbose: print(">>Invalid scaling parameter:",scaling,\
+                        "\n>>Using default instead:",DEFAULT_TEXTSIZE_SCALING,".",
+                        "\n>>Allowed values are:",allowed_scales)
+        if DEFAULT_TEXTSIZE_SCALING.lower() not in allowed_scales:
+            if verbose: print("!!!Warning, Invalid DEFAULT_TEXTSIZE_SCALING!!!",\
+                            "\n!!!Going to use 'weighted' scaling instead.!!!")
+            scale = 'weighted'
+        else: scale = DEFAULT_TEXTSIZE_SCALING
+        return _textsize_scaling_factor(figsize, scaling=scale, verbose=verbose)
+    
 
 #### plt.plot functionality ####
 
