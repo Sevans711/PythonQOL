@@ -103,6 +103,32 @@ def unit_pick(val, units=DEFAULT_UNITS, more_units=[], return_val=False):
     #returned list is based on return_val parameter
     return (p, cf, val * cf) if return_val else (p, cf)
 
+def str2idx(string):
+    """converts s into the indexing tuple it represents.
+    
+    If string includes brackets [], they will be ignored.
+    Ellipses (...) are not currently supported.
+    
+    Examples
+    --------
+    >>> pqol.str2idx(":9")
+    (slice(None, 9, None),)    
+    >>> np.arange(20)[pqol.str2idx("3:9")]
+    array([3, 4, 5, 6, 7, 8])         
+    >>> np.arange(20).reshape(4,5)[pqol.str2idx(":,1")]
+    array([ 1,  6, 11, 16])     
+    >>> np.arange(20).reshape(4,5)[pqol.str2idx("::2,1")]
+    array([ 1, 11]) 
+    """
+    ans = []
+    dims = (string.replace('[','').replace(']','')).split(',')
+    for slicestring in dims:
+        s = slicestring.split(":")
+        if len(s)==1:
+            ans += [int(s[0])]
+        else:
+            ans += [slice( *[(int(x) if x!='' else None) for x in s] )]
+    return tuple(ans)
 
 def strmatch(x, y):
     """returns whether x 'matches' y.
