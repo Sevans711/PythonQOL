@@ -39,6 +39,11 @@ pqol.vline(bbc[1][0]) #draw vline at text bbox's right coord
 pqol.hline(bbc[0][1]) #draw hline at text bbox's bottom coord
 pqol.hline(bbc[1][1]) #draw hline at text bbox's top coord
 pqol.colorbar() #also try to remove this line and see how it changes
+
+(3)
+default (rcParams) fontsizes are "loaded" when an axes object is created.
+Thus if using fixfonts (or scale_fonts) to set fonts,
+you must use these functions before creating the axes for which you want them to apply.
 '''
 
 
@@ -207,30 +212,22 @@ def figure(*args, **kwargs):
     TODO: implement this function so that it only changes the fontsizes
         for the generated figure, but does not change the defaults in rcParams.
     """
-    #pop pqol things from kwargs so they dont go to plt.figure()
-    get_base_kwargs = dict(
-                scaling   = kwargs.pop('scaling'  , DEFAULT_TEXTSIZE_SCALING),
-                base_frac = kwargs.pop('base_frac', DEFAULT_TEXTSIZE_BASE_FRAC),
-                ppi       = kwargs.pop('ppi'      , TEXT_PPI),
-                verbose   = kwargs.pop('verbose'  , True)       )
-    fixfonts_kwargs = dict(
-             s = kwargs.pop('s', DEFAULT_FONT_S),
-             m = kwargs.pop('m', DEFAULT_FONT_M),
-             l = kwargs.pop('l', DEFAULT_FONT_L)         )
+    
+    ## make figure and set fontsize based on figure size
+    kw = _pop_scale_fonts_kwargs(**kwargs)
     
     #make figure, to learn figure size.
     fig = plt.figure(*args, **kwargs)
     figsize = get_figsize(fig)
     
     #do pqol things - currently: just changes default fontsizes in rcParams.
-    base = _figsize_to_base_fontsize(figsize, **get_base_kwargs)
-    new_font_sizes = {key: base * size for key, size in fixfonts_kwargs.items()}
+    base = _figsize_to_base_fontsize(figsize, **kw[0])
+    new_font_sizes = {key: base * size for key, size in kw[1].items()}
     fixfonts(**new_font_sizes)
     
     #return figure object.
     return fig
-    
-    
+
 def get_figsize(fig=None):
     """returns figsize in inches.
     e.g. (X,Y) as per plt.figure(figsize=(X,Y)). X=width; Y=height.
@@ -240,6 +237,40 @@ def get_figsize(fig=None):
     fig = fig if fig is not None else plt.gcf()
     bb = fig.bbox_inches
     return (bb.width, bb.height)
+
+def scale_fonts(figsize, **kwargs):
+    """sets default fontsizes scaled by figsize.
+    
+    The new fontsizes will cause text to take up X percent of a figure of size figsize,
+    where X is the percent of a figure of size (4,4) that text is by default (for pqol).
+    
+    kwargs:
+        the following kwargs will be popped (kwargs is altered by this function):
+        s, m, l:   percent-scaled then passed to fixfonts().
+        scaling, base_frac, ppi, verbose:   passed to _figsize_to_base_fontsize().
+    """
+    #pop pqol things from kwargs so they dont go to plt.figure()
+    kw = _pop_scale_fonts_kwargs(**kwargs)
+    base = _figsize_to_base_fontsize(figsize, **kw[0])
+    new_font_sizes = {key: base * size for key, size in kw[1].items()}
+    if kwargs.pop('printmode', False): #if printmode=True is entered:
+        print(new_font_sizes)
+    fixfonts(**new_font_sizes)
+    
+def _pop_scale_fonts_kwargs(**kwargs):
+    """pops the kwargs for _figsize_to_base_fontsize and fixfonts.
+    returns [base_kwargs, fixfonts_kwargs].
+    """
+    base_kwargs = dict(
+                scaling   = kwargs.pop('scaling'  , DEFAULT_TEXTSIZE_SCALING),
+                base_frac = kwargs.pop('base_frac', DEFAULT_TEXTSIZE_BASE_FRAC),
+                ppi       = kwargs.pop('ppi'      , TEXT_PPI),
+                verbose   = kwargs.pop('verbose'  , True)       )
+    fixfonts_kwargs = dict(
+             s = kwargs.pop('s', DEFAULT_FONT_S),
+             m = kwargs.pop('m', DEFAULT_FONT_M),
+             l = kwargs.pop('l', DEFAULT_FONT_L)         )
+    return [base_kwargs, fixfonts_kwargs]
 
 def _figsize_to_base_fontsize(figsize,
                               scaling=DEFAULT_TEXTSIZE_SCALING,
@@ -668,7 +699,19 @@ def Nth_color(N, cmap=None, n_discrete=None):
 #### field of view ####
 
 ## imshow field of view ##
+
+def extent(dx, dy, Nx, Ny, offset=(0,0)):
+    """returns extent (to go to imshow), given cell dimensions and number of cells.
     
+    dx, dy = width, height of a single cell.
+    Nx, Ny = number of cells in x, y directions (i.e. horizontal, vertical).
+    offset = location for the middle of the bottom left cell.
+    
+    returns extent == np.array([left, right, bottom, top]).
+    """
+    return np.array([*(offset[0] + np.array([0 - dx/2, dx * Nx + dx/2])),
+                     *(offset[1] + np.array([0 - dy/2, dy * Ny + dy/2]))])
+
 def extend(center, size, shape=None):
     """returns numerical values for extent of box with same aspect ratio as data.
     
