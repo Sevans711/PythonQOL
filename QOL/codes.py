@@ -97,7 +97,7 @@ def unit_pick(val, units=DEFAULT_UNITS, more_units=[], return_val=False):
     #main work of function
     u, p = units[-1] #default to smallest value of units, in case val < all units.
     for u, p in units:
-        if val > u: break
+        if val >= u: break
     cf = 1./u #conversion factor
     
     #returned list is based on return_val parameter
