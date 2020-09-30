@@ -138,7 +138,7 @@ DEFAULT_TICKLIMS=(-3, 4)    #default tick limits. See: matplotlib set_powerlimit
                             #e.g. 0.001 can appear but 0.0001 will be written 1e-4.
 DEFAULT_OFFSET_THRESH = 3   #threshold for when tick label is replaced by constant + label.
                             #e.g. 1.2345, 1.2340, 1.2335 --> (x10^-4 + 1.23) 45, 40, 35.
-DEFAULT_USEMATHTEXT = True  #whether to use mathtext in plot tick labels (e.g. 10^5, not 1e5)
+DEFAULT_USEMATHTEXT = False #whether to use mathtext in plot tick labels (e.g. 10^5, not 1e5)
 
 ##Immutable constants:
 TEXT_PPI = 72               #points per inch for text. Always 72.
