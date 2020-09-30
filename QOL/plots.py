@@ -148,8 +148,8 @@ XYLIM_MARGIN=0.05           #for do_xlim, do_ylim
 TEXTBOX_MARGIN=0.002        #for hline, vline
 DEFAULT_SAVE_STR="Untitled" #for savefig
 DEFAULT_GRIDSIZE=(12,12)    #(Nrows (y), Ncols (x)). for data_overlap
-DEFAULT_SAVEDIR='/saved_plots/' #savefig saves to: os.getcwd()+DEFAULT_SAVEDIR
-    #full directory name stored inpqol.savedir. Edit via pqol.set_savedir()
+DEFAULT_SAVEDIR='saved_plots' #savefig saves to: os.path.abspath(DEFAULT_SAVEDIR)
+    #full directory name stored in pqol.savedir. Edit via pqol.set_savedir()
 DEFAULT_TEXTSIZE_SCALING='weighted' #default for _figsize_to_base_fontsize scaling parameter.
 DEFAULT_TEXTSIZE_BASE_FRAC= 1./(4 * TEXT_PPI) #parameter for textsize calculations.
     #percent of scaling factor which textsize base should be.
@@ -244,16 +244,19 @@ def figure(*args, **kwargs):
     #return figure object.
     return fig
 
-def add_axes(axbox, fig=None, sca=False, scale_fonts_kw=dict(),
+def add_axes(axbox, fig=None, sca=False,
+             change_fontsize=True, scale_fonts_kw=dict(),
              *plt_add_axes_args, **plt_add_axes_kw):
-    """scales fonts appropriately and adds axes to fig; returns the added axes.
+    """adds axes to fig; returns the added axes.
+    
+    scales fonts to be same percent of figure, when change_fontsize=True
     
     Use fig if fig is not None else use plt.gcf().
     If sca, also do plt.sca(the_newly_added_axes).
     """
     fig = fig if fig is not None else plt.gcf()
     X, Y = get_figsize(fig)
-    scale_fonts((axbox[2]*X, axbox[3]*Y), **scale_fonts_kw)
+    if change_fontsize: scale_fonts((axbox[2]*X, axbox[3]*Y), **scale_fonts_kw)
     ax = fig.add_axes(axbox, *plt_add_axes_args, **plt_add_axes_kw)
     return ax
 
@@ -1848,7 +1851,7 @@ def _margin(margin, axis="x", ax=None):
 
 ## Save plots ##
 
-def set_savedir(new_savedir=None, DEFAULT=DEFAULT_SAVEDIR):
+def set_savedir(new_savedir=None):
     """sets savedir to the new_savedir, or default if None is passed.
     
     savedir is the default location for saved plots.
@@ -1858,10 +1861,10 @@ def set_savedir(new_savedir=None, DEFAULT=DEFAULT_SAVEDIR):
     global savedir
     global savedir_is_default
     if new_savedir is None:         #set to default.
-        savedir = os.getcwd()+DEFAULT
+        savedir = os.path.abspath(DEFAULT_SAVEDIR)
         savedir_is_default = True
     else:                           #set to inputted savedir
-        savedir = new_savedir
+        savedir = os.path.abspath(new_savedir)
         savedir_is_default = False
     return savedir
 
@@ -1894,7 +1897,6 @@ def _convert_to_next_filename(name, folder=None, imin=None,
     """
     split = "- " #splits name and number.
     folder = folder if folder is not None else savedir
-    sep = os.path.sep
     
     if os.path.isabs(name): #if name is a directory
         folder, name = os.path.split(name)
