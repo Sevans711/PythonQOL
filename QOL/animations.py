@@ -36,6 +36,7 @@ def movie(movie=None, output=None, folder=None, overwrite=False, **kwargs):
     folder = folder if folder is not None else pqol.savedir
    
     dir_path = os.path.join(folder,movie)
+    print(folder, movie, dir_path, "output:",output)
     out_path = os.path.join(folder,output)
     create_mp4(dir_path = dir_path, output = out_path, **kwargs)
     print("movie saved to ", os.path.abspath(out_path))
@@ -66,20 +67,18 @@ def saveframe(movie=None, name=None, folder=None, **kwargs):
     imin = kwargs.pop('imin', 1)
     
     name = name if name is not None else ''
-    if name.startswith('/'):
+    if os.path.isabs(name):
         return pqol.savefig(name, imin=imin, **kwargs)
     else:
         movie = movie if movie is not None else pqol.DEFAULT_SAVE_STR
-        if movie.startswith('/'):
-            i = movie.rfind('/')
-            folder = movie[   : i] +'/'
-            movie  = movie[i+1:  ]
+        if os.path.isabs(movie):
+            folder, movie = os.path.split(movie)
         else:
             folder = folder if folder is not None else pqol.savedir
         if not os.path.isdir(folder): os.mkdir(folder)
         
         name = name if name != '' else movie 
-        pqol.savefig(name, folder= folder + movie + '/', imin=imin, **kwargs)
+        pqol.savefig(name, folder= os.path.join(folder, movie), imin=imin, **kwargs)
     
 
 def create_mp4(dir_path='.', output='output', ext='png',
