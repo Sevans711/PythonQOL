@@ -105,6 +105,12 @@ plt.gca().yaxis.set_major_formatter(mf) #in this example, just change the yaxis 
 #TODO: semilog scales: x-> sign(x) * log(1 + abs(x)) #or something like that.
 #TODO: check for overlapping lines and deal with them...
 #   or vary linewidth, e.g. lw= 5 - const * line_number / number_of_lines
+#TODO: make a pqol matplotlib stylesheet;
+#   use that sheet instead of setting so many defaults in pqol.
+#   don't automatically change style; provide a simple function (e.g. pqol.set_defaults()).
+#TODO: when tick label string overlaps with title, move title out of the way.
+#   (e.g. colorbar x10^-5 + 1.123456 overlapping with plot title)
+#TODO: make entire figure (including data and labels) fit within a certain space.
 
 
 import numpy as np
@@ -130,6 +136,9 @@ DEFAULT_TICKLIMS=(-3, 4)    #default tick limits. See: matplotlib set_powerlimit
                             #   or, see (in this file) fixticklimits() for more info.
                             #(-3, 4) ensures there are never more than 3 zeros in a row.
                             #e.g. 0.001 can appear but 0.0001 will be written 1e-4.
+DEFAULT_OFFSET_THRESH = 3   #threshold for when tick label is replaced by constant + label.
+                            #e.g. 1.2345, 1.2340, 1.2335 --> (x10^-4 + 1.23) 45, 40, 35.
+DEFAULT_USEMATHTEXT = True  #whether to use mathtext in plot tick labels (e.g. 10^5, not 1e5)
 
 ##Immutable constants:
 TEXT_PPI = 72               #points per inch for text. Always 72.
@@ -172,15 +181,22 @@ def fixdpi(dpi=DEFAULT_DPI):
     """sets better default figure dpi for plots"""
     plt.rcParams['figure.dpi'] = dpi
     
-def fixticklimits(limits=DEFAULT_TICKLIMS):
-    """sets better default tick limits.
+def fixticklimits(limits=DEFAULT_TICKLIMS, offset=DEFAULT_OFFSET_THRESH,
+                  mathtext=DEFAULT_USEMATHTEXT):
+    """sets better default tick limits & formatting.
     
     tick limits are the min/max size of tick labels before they are replaced
     by scientific notation. e.g. (-3,4) means use scientific notation when any
     tick value has exponent -3 or lower, or 4 or higher.
     E.g. (-3, 4) produces: 1e−3, 9.9e-3, 0.01, 9999, 1e4.
+    
+    offset threshold <-> when to replace ticks with a constant plus variation.
+    E.g. 1.2345, 1.2340, 1.2335 --> 45, 40, 35 (x10^-4 + 1.23)
+    
+    mathtext = whether to use 10^N or 1eN. (e.g. x10^5 or 1e5.)
     """
-    plt.rc('axes.formatter', limits=limits)
+    plt.rc('axes.formatter', limits=limits, 
+           offset_threshold=offset, use_mathtext=mathtext)
     
 def set_plot_defaults():
     """sets better defauls (fonts & figsize) for plots"""
@@ -262,13 +278,23 @@ def scale_fonts(figsize, **kwargs):
         s, m, l:   percent-scaled then passed to fixfonts().
         scaling, base_frac, ppi, verbose:   passed to _figsize_to_base_fontsize().
     """
+    fixfonts(**scaled_fonts(figsize, **kwargs))
+    
+def scaled_fonts(figsize, **kwargs):
+    """returns default fontsizes scaled by figsize.
+    
+    Like scale_fonts, but does not actually set the new fontsizes.
+    """
     #pop pqol things from kwargs so they dont go to plt.figure()
     kw = _pop_scale_fonts_kwargs(**kwargs)
     base = _figsize_to_base_fontsize(figsize, **kw[0])
     new_font_sizes = {key: base * size for key, size in kw[1].items()}
-    if kwargs.pop('printmode', False): #if printmode=True is entered:
-        print(new_font_sizes)
-    fixfonts(**new_font_sizes)
+    return new_font_sizes
+
+def font_percent(figheight, fontsize, ppi=TEXT_PPI):
+    """returns height of font as a percent of the figure height."""
+    return fontsize / ppi / figheight
+    
     
 def _pop_scale_fonts_kwargs(**kwargs):
     """pops the kwargs for _figsize_to_base_fontsize and fixfonts.
