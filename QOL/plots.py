@@ -1851,11 +1851,15 @@ def _margin(margin, axis="x", ax=None):
 
 ## Save plots ##
 
-def set_savedir(new_savedir=None):
+def set_savedir(new_savedir=None, append=False):
     """sets savedir to the new_savedir, or default if None is passed.
     
+    append: if True, append new_savedir string at end of current savedir.
+    (e.g. if savedir is ~/saved_plots,
+         set_savedir('-test', append=True) would make savedir be ~/saved_plots-test.
+    
     savedir is the default location for saved plots.
-    it defaults to os.getcwd()+'/saved_plots/'.
+    it defaults to os.path.abspath(DEFAULT_SAVEDIR)  #e.g. os.cwd()+'/saved_plots/'
     access via: import QOL.plots as pqol; pqol.savedir
     """
     global savedir
@@ -1864,7 +1868,8 @@ def set_savedir(new_savedir=None):
         savedir = os.path.abspath(DEFAULT_SAVEDIR)
         savedir_is_default = True
     else:                           #set to inputted savedir
-        savedir = os.path.abspath(new_savedir)
+        if append: savedir = os.path.abspath(savedir + new_savedir)
+        else     : savedir = os.path.abspath(new_savedir)
         savedir_is_default = False
     return savedir
 
