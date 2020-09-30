@@ -55,7 +55,7 @@ you must use these functions before creating the axes for which you want them to
 '''
 A, B, C = np.random.rand(3,5,5)
 fig = plt.figure(figsize=(4,4))
-ax1 = fig.add_axes((-0.1, 0.0, 0.8, 0.5))
+ax1 = fig.add_axes((-0.1, 0.0, 0.8, 0.5)) #left, bottom, width, height
 ax0 = fig.add_axes((0.1, 0.3, 0.5, 0.7))
 plt.imshow(A*1e-3, aspect='auto')
 cb = pqol.colorbar()
@@ -126,7 +126,7 @@ USE_PQOL_RCPARAM_DEFAULTS = True #whether to use pqol defaults or not.
          #but subsequent loadings of pqol would no longer overwrite any matplotlib defaults.
 DEFAULT_FIGSIZE=(4,4)       #for fixfigsize
 DEFAULT_DPI=100             #for fixdpi
-DEFAULT_TICKLIMS=(-3, 4)    #default tick limits. See: matplotlib set_powerlims for more info.
+DEFAULT_TICKLIMS=(-3, 4)    #default tick limits. See: matplotlib set_powerlimits for more info.
                             #   or, see (in this file) fixticklimits() for more info.
                             #(-3, 4) ensures there are never more than 3 zeros in a row.
                             #e.g. 0.001 can appear but 0.0001 will be written 1e-4.
@@ -227,6 +227,19 @@ def figure(*args, **kwargs):
     
     #return figure object.
     return fig
+
+def add_axes(axbox, fig=None, sca=False, scale_fonts_kw=dict(),
+             *plt_add_axes_args, **plt_add_axes_kw):
+    """scales fonts appropriately and adds axes to fig; returns the added axes.
+    
+    Use fig if fig is not None else use plt.gcf().
+    If sca, also do plt.sca(the_newly_added_axes).
+    """
+    fig = fig if fig is not None else plt.gcf()
+    X, Y = get_figsize(fig)
+    scale_fonts((axbox[2]*X, axbox[3]*Y), **scale_fonts_kw)
+    ax = fig.add_axes(axbox, *plt_add_axes_args, **plt_add_axes_kw)
+    return ax
 
 def get_figsize(fig=None):
     """returns figsize in inches.
