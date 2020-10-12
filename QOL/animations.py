@@ -79,8 +79,28 @@ def saveframe(movie=None, name=None, folder=None, **kwargs):
         
         name = name if name != '' else movie 
         pqol.savefig(name, folder= os.path.join(folder, movie), imin=imin, **kwargs)
-    
 
+def soft_timing(Nframes, time, fpsmin=10, fpsmax=20):
+    """determines time & fps; aims for target time, but forces fpsmin < fps < fpsmax.
+    
+    example usage: target 3 seconds, but force 10 < fps < 25:
+        import QOL.animations as aqol
+        for i in range(50):
+            code_that_makes_plot_number_i()
+            aqol.saveframe('moviename')
+            plt.close()
+        aqol.movie('moviename', **soft_timing(3, 10, 25))
+        
+    returns dict(time=time, fps=fps)
+    """
+    #determine timing or fps.
+    if   time > Nframes/fpsmin: #makes sure the movie doesnt go too slow.
+        (time, fps) = (None, fpsmin)
+    elif time < Nframes/fpsmax: #makes sure the movie doesnt go too fast.
+        (time, fps) = (None, fpsmax)
+    else: #makes the movie 3 seconds long if it will have fpsmin < fps < fpsmax.
+        (time, fps) = (time, 1) #fps will be ignored in aqol.movie since time is not None.    
+    
 def create_mp4(dir_path='.', output='output', ext='png',
                fps=10, time=None, visual=False, printfreq=500, verbose=True):
     """create movie from a folder filled with pngs named 1-*.ext, 2-*.ext,....
@@ -99,12 +119,14 @@ def create_mp4(dir_path='.', output='output', ext='png',
     fps      : int. Default: 10
         frames per second. ignored if time is not None
         MUST NOT BE 2^N - THIS MAKES CRAZY GRAPHICS BUG. DON'T KNOW WHY.
+        (Code now automatically ensures fps is not 2^N, via fps+=1 if needed.)
     time     : number, or None. Default: None
         length of full animation, in seconds. if None, use fps instead.
     visual   : bool. Default: False
         whether to show video
     printfreq: int. Default: 500
         update user on progress after every <printfreq> ms
+        NOT YET IMPLEMENTED.
     verbose  : bool. Default: True
         whether to print extra info such as if any frames were reshaped.
     """
@@ -122,7 +144,7 @@ def create_mp4(dir_path='.', output='output', ext='png',
     #Overrides the -fps arg
     if time is not None:
         fps = int(len(imfiles) / int(time))
-        print("Adjusting framerate to " + str(fps))
+        if verbose: print("Adjusting framerate to " + str(fps))
         
     #Ensure framerate is 2^N for N>=1, which makes huge graphics bug for some reason.
     fr=2
@@ -131,7 +153,7 @@ def create_mp4(dir_path='.', output='output', ext='png',
     if fr==fps:
         fps += 1
         print("Framerate cannot be 2,4,8,16,... or makes weird graphics bug.\n"+\
-              "Adjusting fps by +1, to {:d}".format(fps))
+              " >>> Adjusting fps by +1, to {:d}".format(fps))
               
 
     # Determine the width and height from the first image
