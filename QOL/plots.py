@@ -294,9 +294,19 @@ def scaled_fonts(figsize, **kwargs):
     new_font_sizes = {key: base * size for key, size in kw[1].items()}
     return new_font_sizes
 
-def font_percent(figheight, fontsize, ppi=TEXT_PPI):
-    """returns height of font as a percent of the figure height."""
-    return fontsize / ppi / figheight
+def fontsize_to_percent(fontsize, figheight=DEFAULT_FIGSIZE[1], ppi=TEXT_PPI):
+    """returns height of font as a percent of the figure height.
+    
+    result has units of percent; e.g. a result of 5 indicates 5%.
+    """
+    return 100 * fontsize / ppi / figheight
+
+def percent_to_fontsize(percent,  figheight=DEFAULT_FIGSIZE[1], ppi=TEXT_PPI):
+    """returns fontsize corresponding to fraction of figure height.
+    
+    percent has units of percent; e.g. percent=5 indicates 5%.
+    """
+    return percent/100 * ppi * figheight
     
     
 def _pop_scale_fonts_kwargs(**kwargs):
@@ -432,7 +442,7 @@ def iplot(x, y=None, ss=None, i=None, xfunc=lambda x: x, yfunc=lambda y: y,
     
 def dictplot(x, y=None, yfunc=lambda y:y, xfunc=lambda x:x,
              keys=None, hide_keys=None, labels='^', prefix='', suffix='', 
-             plotter=plt.plot, stylize_keys=None, **kwargs):
+             plotter=plt.plot, stylize_keys=None, verbose=True, **kwargs):
     """plots all data from dict on one plot, using keys as labels.
     
     Parameters
@@ -546,7 +556,7 @@ def dictplot(x, y=None, yfunc=lambda y:y, xfunc=lambda x:x,
         except:
             failed_to_plot_keys += [key]
             
-    if failed_to_plot_keys != []:
+    if verbose and failed_to_plot_keys != []:
         print("Warning: failed to plot for keys: "+', '.join(failed_to_plot_keys))
     legend()
 
@@ -1725,7 +1735,7 @@ def vline(x, text=None, textparams=dict(), textloc=0.5, textanchor="start",
     if (not forceplot) and abs(x_a)>2:
         print("Refusing to draw vline at x=",x_a,"in axes coords.\n" +\
               "    Use vline(forceplot=True) to draw this line anyway.")
-        return #exits hline entirely.
+        return #exits vline entirely.
     
     ax.axvline(x_d, ymin_a, ymax_a, **kwargs)
     
